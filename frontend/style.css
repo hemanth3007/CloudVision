@@ -1,0 +1,76 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background: #f4f7fb;
+    min-height: 100vh;
+}
+
+.container {
+    text-align: center;
+    padding: 60px 20px;
+}
+
+h1 {
+    font-size: 42px;
+    margin-bottom: 10px;
+}
+
+.subtitle {
+    font-size: 18px;
+    color: #666;
+    margin-bottom: 40px;
+}
+
+.upload-box {
+    background: white;
+    width: 500px;
+    max-width: 100%;
+    margin: auto;
+    padding: 40px;
+    border-radius: 12px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+}
+
+.upload-box h2 {
+    margin-bottom: 10px;
+}
+
+.upload-box p {
+    color: #666;
+    margin-bottom: 25px;
+}
+
+#imageInput {
+    display: none;
+}
+
+.upload-button {
+    display: inline-block;
+    background: #222;
+    color: white;
+    padding: 12px 25px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.upload-button:hover {
+    opacity: 0.8;
+}
+
+#fileInfo {
+    margin-top: 20px;
+    font-size: 15px;
+}
+
+#preview {
+    display: none;
+    max-width: 100%;
+    max-height: 300px;
+    margin: 20px auto 0;
+    border-radius: 8px;
+}
