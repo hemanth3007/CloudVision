@@ -1,45 +1,63 @@
 const imageInput = document.getElementById("imageInput");
 
 const uploadArea = document.getElementById("uploadArea");
-
 const fileSection = document.getElementById("fileSection");
-
 const preview = document.getElementById("preview");
-
 const fileInfo = document.getElementById("fileInfo");
 
 const statusSection = document.getElementById("statusSection");
-
 const statusTitle = document.getElementById("statusTitle");
-
 const statusMessage = document.getElementById("statusMessage");
 
 const resultSection = document.getElementById("resultSection");
-
 const resultImage = document.getElementById("resultImage");
 
 const originalSize = document.getElementById("originalSize");
-
 const optimizedSize = document.getElementById("optimizedSize");
-
 const reduction = document.getElementById("reduction");
 
 const downloadButton = document.getElementById("downloadButton");
 
 const errorSection = document.getElementById("errorSection");
-
 const errorMessage = document.getElementById("errorMessage");
 
 const retryButton = document.getElementById("retryButton");
-
 const resetButton = document.getElementById("resetButton");
 
 const API_URL =
   "https://j79eb6dc77.execute-api.ap-south-1.amazonaws.com/upload";
 
+/*
+=================================================
+APPLICATION STATE
+=================================================
+*/
+
 let selectedFile = null;
 
 let selectedInputKey = null;
+
+let previewURL = null;
+
+let processingTimer = null;
+
+let isProcessing = false;
+
+/*
+=================================================
+SUPPORTED IMAGE TYPES
+=================================================
+*/
+
+const contentTypeMap = {
+  jpg: "image/jpeg",
+
+  jpeg: "image/jpeg",
+
+  png: "image/png",
+
+  webp: "image/webp",
+};
 
 /*
 =================================================
@@ -54,12 +72,82 @@ imageInput.addEventListener("change", async function () {
     return;
   }
 
+  /*
+        -----------------------------------------
+        Stop previous processing
+        -----------------------------------------
+        */
+
+  stopProcessingTimer();
+
+  /*
+        -----------------------------------------
+        Validate file
+        -----------------------------------------
+        */
+
+  const validationError = validateFile(file);
+
+  if (validationError) {
+    showError(validationError);
+
+    imageInput.value = "";
+
+    return;
+  }
+
+  /*
+        -----------------------------------------
+        Store file
+        -----------------------------------------
+        */
+
   selectedFile = file;
+
+  isProcessing = true;
+
+  /*
+        -----------------------------------------
+        Show preview
+        -----------------------------------------
+        */
 
   showFile(file);
 
+  /*
+        -----------------------------------------
+        Upload
+        -----------------------------------------
+        */
+
   await uploadImage(file);
 });
+
+/*
+=================================================
+FILE VALIDATION
+=================================================
+*/
+
+function validateFile(file) {
+  if (!file) {
+    return "Please select an image.";
+  }
+
+  if (file.size === 0) {
+    return "The selected file is empty.";
+  }
+
+  const extension = file.name.split(".").pop().toLowerCase();
+
+  if (!contentTypeMap[extension]) {
+    return (
+      "Unsupported image format. " + "Please select a JPG, PNG or WebP image."
+    );
+  }
+
+  return null;
+}
 
 /*
 =================================================
@@ -68,18 +156,28 @@ SHOW SELECTED FILE
 */
 
 function showFile(file) {
-  const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+  const size = formatFileSize(file.size);
 
-  const imageURL = URL.createObjectURL(file);
+  /*
+    -----------------------------------------
+    Clean previous preview URL
+    -----------------------------------------
+    */
 
-  preview.src = imageURL;
+  if (previewURL) {
+    URL.revokeObjectURL(previewURL);
+  }
+
+  previewURL = URL.createObjectURL(file);
+
+  preview.src = previewURL;
 
   fileSection.classList.remove("hidden");
 
   fileInfo.innerHTML = `
-        <strong>${file.name}</strong>
+        <strong>${escapeHTML(file.name)}</strong>
         <br>
-        ${sizeMB} MB
+        ${size}
     `;
 }
 
@@ -96,34 +194,18 @@ async function uploadImage(file) {
 
   statusSection.classList.remove("hidden");
 
-  statusTitle.textContent = "Preparing your image...";
-
-  statusMessage.textContent = "Requesting a secure upload URL.";
+  setStatus("Preparing your image...", "Requesting a secure upload URL.");
 
   try {
     /*
         -----------------------------------------
-        Determine content type
+        Determine extension
         -----------------------------------------
         */
 
     const extension = file.name.split(".").pop().toLowerCase();
 
-    const contentTypeMap = {
-      jpg: "image/jpeg",
-
-      jpeg: "image/jpeg",
-
-      png: "image/png",
-
-      webp: "image/webp",
-    };
-
     const contentType = contentTypeMap[extension];
-
-    if (!contentType) {
-      throw new Error("Unsupported image format.");
-    }
 
     /*
         -----------------------------------------
@@ -145,13 +227,11 @@ async function uploadImage(file) {
       }),
     });
 
+    const data = await readJSON(response);
+
     if (!response.ok) {
-      const errorText = await response.text();
-
-      throw new Error(errorText);
+      throw new Error(data.error || "Unable to prepare the upload.");
     }
-
-    const data = await response.json();
 
     console.log("Upload API Response:", data);
 
@@ -159,13 +239,14 @@ async function uploadImage(file) {
 
     /*
         -----------------------------------------
-        Upload directly to S3
+        Upload to S3
         -----------------------------------------
         */
 
-    statusTitle.textContent = "Uploading image...";
-
-    statusMessage.textContent = "Securely uploading your image to CloudVision.";
+    setStatus(
+      "Uploading image...",
+      "Securely uploading your image to CloudVision.",
+    );
 
     const uploadResponse = await fetch(
       data.uploadUrl,
@@ -182,7 +263,7 @@ async function uploadImage(file) {
     );
 
     if (!uploadResponse.ok) {
-      throw new Error("Image upload failed.");
+      throw new Error("The image could not be uploaded to storage.");
     }
 
     console.log("Image uploaded successfully!");
@@ -193,16 +274,18 @@ async function uploadImage(file) {
         -----------------------------------------
         */
 
-    statusTitle.textContent = "Optimizing your image...";
-
-    statusMessage.textContent =
-      "CloudVision is reducing the image size while preserving quality.";
+    setStatus(
+      "Optimizing your image...",
+      "CloudVision is reducing the image size while preserving quality.",
+    );
 
     checkProcessing(data.key, file.size);
   } catch (error) {
     console.error("Upload error:", error);
 
-    showError("Unable to upload the image. Please try again.");
+    isProcessing = false;
+
+    showError(getFriendlyError(error));
   }
 }
 
@@ -213,6 +296,16 @@ CHECK PROCESSING STATUS
 */
 
 async function checkProcessing(inputKey, originalFileSize) {
+  /*
+    -----------------------------------------
+    Safety check
+    -----------------------------------------
+    */
+
+  if (!isProcessing) {
+    return;
+  }
+
   try {
     console.log("Checking processing status...");
 
@@ -230,7 +323,7 @@ async function checkProcessing(inputKey, originalFileSize) {
       }),
     });
 
-    const data = await response.json();
+    const data = await readJSON(response);
 
     console.log("Processing response:", data);
 
@@ -241,11 +334,12 @@ async function checkProcessing(inputKey, originalFileSize) {
         */
 
     if (response.status === 202) {
-      statusTitle.textContent = "Optimizing your image...";
+      setStatus(
+        "Optimizing your image...",
+        "Your image is still being processed.",
+      );
 
-      statusMessage.textContent = "Almost there. Please wait...";
-
-      setTimeout(
+      processingTimer = setTimeout(
         function () {
           checkProcessing(inputKey, originalFileSize);
         },
@@ -263,16 +357,26 @@ async function checkProcessing(inputKey, originalFileSize) {
         */
 
     if (response.ok && data.status === "completed") {
+      isProcessing = false;
+
       displayResult(data, originalFileSize);
 
       return;
     }
 
+    /*
+        -----------------------------------------
+        Backend error
+        -----------------------------------------
+        */
+
     throw new Error(data.error || "Image processing failed.");
   } catch (error) {
     console.error("Processing error:", error);
 
-    showError("The image could not be processed. Please try again.");
+    isProcessing = false;
+
+    showError(getFriendlyError(error));
   }
 }
 
@@ -283,24 +387,40 @@ DISPLAY RESULT
 */
 
 function displayResult(data, originalFileSize) {
-  const optimizedFileSize = data.size;
-
-  const reductionValue =
-    ((originalFileSize - optimizedFileSize) / originalFileSize) * 100;
-
-  const reductionPercent = reductionValue.toFixed(2);
-
-  /*
-    -----------------------------------------
-    Hide processing section
-    -----------------------------------------
-    */
+  stopProcessingTimer();
 
   statusSection.classList.add("hidden");
 
   /*
     -----------------------------------------
-    Show optimized image
+    Validate result
+    -----------------------------------------
+    */
+
+  if (!data.downloadUrl || !data.size) {
+    showError(
+      "The optimized image was created, but the result could not be loaded.",
+    );
+
+    return;
+  }
+
+  const optimizedFileSize = data.size;
+
+  /*
+    -----------------------------------------
+    Calculate reduction
+    -----------------------------------------
+    */
+
+  const reductionValue =
+    ((originalFileSize - optimizedFileSize) / originalFileSize) * 100;
+
+  const reductionPercent = Math.max(0, reductionValue).toFixed(2);
+
+  /*
+    -----------------------------------------
+    Display image
     -----------------------------------------
     */
 
@@ -320,7 +440,7 @@ function displayResult(data, originalFileSize) {
 
   /*
     -----------------------------------------
-    Download button
+    Download
     -----------------------------------------
     */
 
@@ -333,6 +453,95 @@ function displayResult(data, originalFileSize) {
     */
 
   resultSection.classList.remove("hidden");
+}
+
+/*
+=================================================
+STATUS
+=================================================
+*/
+
+function setStatus(title, message) {
+  statusTitle.textContent = title;
+
+  statusMessage.textContent = message;
+}
+
+/*
+=================================================
+ERROR HANDLING
+=================================================
+*/
+
+function showError(message) {
+  stopProcessingTimer();
+
+  isProcessing = false;
+
+  statusSection.classList.add("hidden");
+
+  resultSection.classList.add("hidden");
+
+  errorMessage.textContent = message;
+
+  errorSection.classList.remove("hidden");
+}
+
+function hideError() {
+  errorSection.classList.add("hidden");
+}
+
+/*
+=================================================
+FRIENDLY ERROR MESSAGE
+=================================================
+*/
+
+function getFriendlyError(error) {
+  const message = error?.message || "";
+
+  if (message.includes("Failed to fetch")) {
+    return (
+      "Unable to contact CloudVision. " +
+      "Please check your internet connection and try again."
+    );
+  }
+
+  if (message.includes("Unsupported image")) {
+    return message;
+  }
+
+  if (message.includes("upload")) {
+    return "The image upload failed. " + "Please try again.";
+  }
+
+  if (message.includes("processing")) {
+    return "The image could not be processed. " + "Please try again.";
+  }
+
+  return message || "Something went wrong. Please try again.";
+}
+
+/*
+=================================================
+READ JSON SAFELY
+=================================================
+*/
+
+async function readJSON(response) {
+  const text = await response.text();
+
+  if (!text) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return {
+      error: text,
+    };
+  }
 }
 
 /*
@@ -355,36 +564,54 @@ function formatFileSize(bytes) {
 
 /*
 =================================================
-ERROR HANDLING
+STOP PROCESSING TIMER
 =================================================
 */
 
-function showError(message) {
-  statusSection.classList.add("hidden");
+function stopProcessingTimer() {
+  if (processingTimer) {
+    clearTimeout(processingTimer);
 
-  resultSection.classList.add("hidden");
-
-  errorMessage.textContent = message;
-
-  errorSection.classList.remove("hidden");
-}
-
-function hideError() {
-  errorSection.classList.add("hidden");
+    processingTimer = null;
+  }
 }
 
 /*
 =================================================
-RESET
+ESCAPE HTML
+=================================================
+*/
+
+function escapeHTML(value) {
+  const div = document.createElement("div");
+
+  div.textContent = value;
+
+  return div.innerHTML;
+}
+
+/*
+=================================================
+RESET APPLICATION
 =================================================
 */
 
 function resetApplication() {
-  imageInput.value = "";
+  stopProcessingTimer();
+
+  isProcessing = false;
 
   selectedFile = null;
 
   selectedInputKey = null;
+
+  imageInput.value = "";
+
+  if (previewURL) {
+    URL.revokeObjectURL(previewURL);
+
+    previewURL = null;
+  }
 
   preview.src = "";
 
@@ -396,6 +623,12 @@ function resetApplication() {
 
   errorSection.classList.add("hidden");
 }
+
+/*
+=================================================
+BUTTONS
+=================================================
+*/
 
 resetButton.addEventListener("click", resetApplication);
 
