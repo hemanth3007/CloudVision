@@ -1,9 +1,51 @@
 const imageInput = document.getElementById("imageInput");
+
+const uploadArea = document.getElementById("uploadArea");
+
+const fileSection = document.getElementById("fileSection");
+
 const preview = document.getElementById("preview");
+
 const fileInfo = document.getElementById("fileInfo");
+
+const statusSection = document.getElementById("statusSection");
+
+const statusTitle = document.getElementById("statusTitle");
+
+const statusMessage = document.getElementById("statusMessage");
+
+const resultSection = document.getElementById("resultSection");
+
+const resultImage = document.getElementById("resultImage");
+
+const originalSize = document.getElementById("originalSize");
+
+const optimizedSize = document.getElementById("optimizedSize");
+
+const reduction = document.getElementById("reduction");
+
+const downloadButton = document.getElementById("downloadButton");
+
+const errorSection = document.getElementById("errorSection");
+
+const errorMessage = document.getElementById("errorMessage");
+
+const retryButton = document.getElementById("retryButton");
+
+const resetButton = document.getElementById("resetButton");
 
 const API_URL =
   "https://j79eb6dc77.execute-api.ap-south-1.amazonaws.com/upload";
+
+let selectedFile = null;
+
+let selectedInputKey = null;
+
+/*
+=================================================
+IMAGE SELECTION
+=================================================
+*/
 
 imageInput.addEventListener("change", async function () {
   const file = imageInput.files[0];
@@ -12,43 +54,82 @@ imageInput.addEventListener("change", async function () {
     return;
   }
 
-  const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+  selectedFile = file;
 
-  fileInfo.innerHTML = `
-        <strong>${file.name}</strong><br>
-        Size: ${sizeMB} MB<br>
-        <br>
-        Requesting upload URL...
-    `;
+  showFile(file);
+
+  await uploadImage(file);
+});
+
+/*
+=================================================
+SHOW SELECTED FILE
+=================================================
+*/
+
+function showFile(file) {
+  const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
 
   const imageURL = URL.createObjectURL(file);
 
   preview.src = imageURL;
-  preview.style.display = "block";
+
+  fileSection.classList.remove("hidden");
+
+  fileInfo.innerHTML = `
+        <strong>${file.name}</strong>
+        <br>
+        ${sizeMB} MB
+    `;
+}
+
+/*
+=================================================
+UPLOAD IMAGE
+=================================================
+*/
+
+async function uploadImage(file) {
+  hideError();
+
+  resultSection.classList.add("hidden");
+
+  statusSection.classList.remove("hidden");
+
+  statusTitle.textContent = "Preparing your image...";
+
+  statusMessage.textContent = "Requesting a secure upload URL.";
 
   try {
-    // -----------------------------------------
-    // Step 1: Determine content type
-    // -----------------------------------------
+    /*
+        -----------------------------------------
+        Determine content type
+        -----------------------------------------
+        */
 
     const extension = file.name.split(".").pop().toLowerCase();
 
     const contentTypeMap = {
       jpg: "image/jpeg",
+
       jpeg: "image/jpeg",
+
       png: "image/png",
+
       webp: "image/webp",
     };
 
     const contentType = contentTypeMap[extension];
 
     if (!contentType) {
-      throw new Error("Unsupported image format");
+      throw new Error("Unsupported image format.");
     }
 
-    // -----------------------------------------
-    // Step 2: Request presigned upload URL
-    // -----------------------------------------
+    /*
+        -----------------------------------------
+        Request presigned URL
+        -----------------------------------------
+        */
 
     const response = await fetch(API_URL, {
       method: "POST",
@@ -59,14 +140,13 @@ imageInput.addEventListener("change", async function () {
 
       body: JSON.stringify({
         fileName: file.name,
+
         contentType: contentType,
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-
-      console.error("API Error:", errorText);
 
       throw new Error(errorText);
     }
@@ -75,67 +155,64 @@ imageInput.addEventListener("change", async function () {
 
     console.log("Upload API Response:", data);
 
-    fileInfo.innerHTML = `
-            <strong>${file.name}</strong><br>
-            Size: ${sizeMB} MB<br>
-            <br>
-            Upload URL received!<br>
-            Uploading image...
-        `;
+    selectedInputKey = data.key;
 
-    // -----------------------------------------
-    // Step 3: Upload directly to S3
-    // -----------------------------------------
+    /*
+        -----------------------------------------
+        Upload directly to S3
+        -----------------------------------------
+        */
 
-    const uploadResponse = await fetch(data.uploadUrl, {
-      method: "PUT",
+    statusTitle.textContent = "Uploading image...";
 
-      headers: {
-        "Content-Type": contentType,
+    statusMessage.textContent = "Securely uploading your image to CloudVision.";
+
+    const uploadResponse = await fetch(
+      data.uploadUrl,
+
+      {
+        method: "PUT",
+
+        headers: {
+          "Content-Type": contentType,
+        },
+
+        body: file,
       },
-
-      body: file,
-    });
+    );
 
     if (!uploadResponse.ok) {
-      const errorText = await uploadResponse.text();
-
-      console.error("S3 Upload Error:", errorText);
-
-      throw new Error("Image upload failed");
+      throw new Error("Image upload failed.");
     }
 
     console.log("Image uploaded successfully!");
 
-    fileInfo.innerHTML = `
-            <strong>${file.name}</strong><br>
-            Size: ${sizeMB} MB<br>
-            <br>
-            Image uploaded successfully!<br>
-            Processing image...
-        `;
+    /*
+        -----------------------------------------
+        Start processing
+        -----------------------------------------
+        */
 
-    // -----------------------------------------
-    // Step 4: Check processing status
-    // -----------------------------------------
+    statusTitle.textContent = "Optimizing your image...";
+
+    statusMessage.textContent =
+      "CloudVision is reducing the image size while preserving quality.";
 
     checkProcessing(data.key, file.size);
   } catch (error) {
-    console.error("Error:", error);
+    console.error("Upload error:", error);
 
-    fileInfo.innerHTML = `
-            <strong>${file.name}</strong><br>
-            <br>
-            Upload failed.
-        `;
+    showError("Unable to upload the image. Please try again.");
   }
-});
+}
 
-// =================================================
-// Check whether optimized image is ready
-// =================================================
+/*
+=================================================
+CHECK PROCESSING STATUS
+=================================================
+*/
 
-async function checkProcessing(inputKey, originalSize) {
+async function checkProcessing(inputKey, originalFileSize) {
   try {
     console.log("Checking processing status...");
 
@@ -148,6 +225,7 @@ async function checkProcessing(inputKey, originalSize) {
 
       body: JSON.stringify({
         action: "result",
+
         key: inputKey,
       }),
     });
@@ -156,84 +234,169 @@ async function checkProcessing(inputKey, originalSize) {
 
     console.log("Processing response:", data);
 
-    // -----------------------------------------
-    // Still processing
-    // -----------------------------------------
+    /*
+        -----------------------------------------
+        Still processing
+        -----------------------------------------
+        */
 
     if (response.status === 202) {
-      fileInfo.innerHTML = `
-                <strong>Processing image...</strong><br>
-                Please wait.
-            `;
+      statusTitle.textContent = "Optimizing your image...";
 
-      setTimeout(function () {
-        checkProcessing(inputKey, originalSize);
-      }, 2000);
+      statusMessage.textContent = "Almost there. Please wait...";
+
+      setTimeout(
+        function () {
+          checkProcessing(inputKey, originalFileSize);
+        },
+
+        2000,
+      );
 
       return;
     }
 
-    // -----------------------------------------
-    // Processing completed
-    // -----------------------------------------
+    /*
+        -----------------------------------------
+        Processing complete
+        -----------------------------------------
+        */
 
     if (response.ok && data.status === "completed") {
-      displayResult(data, originalSize);
+      displayResult(data, originalFileSize);
 
       return;
     }
 
-    throw new Error(data.error || "Processing failed");
+    throw new Error(data.error || "Image processing failed.");
   } catch (error) {
     console.error("Processing error:", error);
 
-    fileInfo.innerHTML = `
-            <strong>Processing failed.</strong><br>
-            Please try again.
-        `;
+    showError("The image could not be processed. Please try again.");
   }
 }
 
-// =================================================
-// Display optimized image
-// =================================================
+/*
+=================================================
+DISPLAY RESULT
+=================================================
+*/
 
-function displayResult(data, originalSize) {
-  const optimizedSize = data.size;
+function displayResult(data, originalFileSize) {
+  const optimizedFileSize = data.size;
 
-  const reduction = ((originalSize - optimizedSize) / originalSize) * 100;
+  const reductionValue =
+    ((originalFileSize - optimizedFileSize) / originalFileSize) * 100;
 
-  const reductionPercent = reduction.toFixed(2);
+  const reductionPercent = reductionValue.toFixed(2);
 
-  preview.src = data.downloadUrl;
+  /*
+    -----------------------------------------
+    Hide processing section
+    -----------------------------------------
+    */
 
-  preview.style.display = "block";
+  statusSection.classList.add("hidden");
 
-  fileInfo.innerHTML = `
-        <strong>Optimization Complete!</strong>
-        <br><br>
+  /*
+    -----------------------------------------
+    Show optimized image
+    -----------------------------------------
+    */
 
-        Original Size:
-        ${(originalSize / (1024 * 1024)).toFixed(2)} MB
+  resultImage.src = data.downloadUrl;
 
-        <br>
+  /*
+    -----------------------------------------
+    Display statistics
+    -----------------------------------------
+    */
 
-        Optimized Size:
-        ${(optimizedSize / (1024 * 1024)).toFixed(2)} MB
+  originalSize.textContent = formatFileSize(originalFileSize);
 
-        <br>
+  optimizedSize.textContent = formatFileSize(optimizedFileSize);
 
-        Storage Reduction:
-        ${reductionPercent}%
+  reduction.textContent = reductionPercent + "%";
 
-        <br><br>
+  /*
+    -----------------------------------------
+    Download button
+    -----------------------------------------
+    */
 
-        <a
-            href="${data.downloadUrl}"
-            download
-            target="_blank"
-        >
-            Download Optimized Image
-        </a>
-    `;
+  downloadButton.href = data.downloadUrl;
+
+  /*
+    -----------------------------------------
+    Show result
+    -----------------------------------------
+    */
+
+  resultSection.classList.remove("hidden");
 }
+
+/*
+=================================================
+FORMAT FILE SIZE
+=================================================
+*/
+
+function formatFileSize(bytes) {
+  if (bytes < 1024) {
+    return bytes + " B";
+  }
+
+  if (bytes < 1024 * 1024) {
+    return (bytes / 1024).toFixed(2) + " KB";
+  }
+
+  return (bytes / (1024 * 1024)).toFixed(2) + " MB";
+}
+
+/*
+=================================================
+ERROR HANDLING
+=================================================
+*/
+
+function showError(message) {
+  statusSection.classList.add("hidden");
+
+  resultSection.classList.add("hidden");
+
+  errorMessage.textContent = message;
+
+  errorSection.classList.remove("hidden");
+}
+
+function hideError() {
+  errorSection.classList.add("hidden");
+}
+
+/*
+=================================================
+RESET
+=================================================
+*/
+
+function resetApplication() {
+  imageInput.value = "";
+
+  selectedFile = null;
+
+  selectedInputKey = null;
+
+  preview.src = "";
+
+  fileSection.classList.add("hidden");
+
+  statusSection.classList.add("hidden");
+
+  resultSection.classList.add("hidden");
+
+  errorSection.classList.add("hidden");
+}
+
+resetButton.addEventListener("click", resetApplication);
+
+retryButton.addEventListener("click", resetApplication);

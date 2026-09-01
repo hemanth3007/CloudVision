@@ -1,39 +1,139 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
     <title>CloudVision</title>
-    <link rel="stylesheet" href="style.css">
-</head>
 
-<body>
+    <link rel="stylesheet" href="style.css" />
+  </head>
 
-    <div class="container">
+  <body>
+    <main class="container">
+      <!-- Header -->
 
+      <header class="header">
         <h1>CloudVision</h1>
-        <p class="subtitle">Smart Image Optimization</p>
 
-        <div class="upload-box">
+        <p>Smart Image Optimization</p>
+      </header>
 
-            <h2>Optimize Your Image</h2>
-            <p>Select an image to reduce its size without losing quality.</p>
+      <!-- Main Card -->
 
-            <input type="file" id="imageInput" accept="image/*">
+      <section class="card">
+        <h2>Optimize Your Image</h2>
 
-            <label for="imageInput" class="upload-button">
-                Choose Image
-            </label>
+        <p class="description">Reduce image size while maintaining quality.</p>
 
-            <div id="fileInfo"></div>
+        <!-- Upload Area -->
 
-            <img id="preview" alt="Image Preview">
+        <div id="uploadArea" class="upload-area">
+          <div class="upload-icon">↑</div>
 
+          <h3>Choose an image</h3>
+
+          <p>JPG, PNG or WebP</p>
+
+          <input type="file" id="imageInput" accept=".jpg,.jpeg,.png,.webp" />
+
+          <label for="imageInput" class="button primary-button">
+            Choose Image
+          </label>
         </div>
 
-    </div>
+        <!-- File Information -->
+
+        <div id="fileSection" class="file-section hidden">
+          <img id="preview" class="preview" alt="Selected image" />
+
+          <div id="fileInfo"></div>
+        </div>
+
+        <!-- Status -->
+
+        <div id="statusSection" class="status-section hidden">
+          <div id="statusIcon" class="status-icon">⏳</div>
+
+          <h3 id="statusTitle">Processing image...</h3>
+
+          <p id="statusMessage">
+            Please wait while CloudVision optimizes your image.
+          </p>
+        </div>
+
+        <!-- Results -->
+
+        <div id="resultSection" class="result-section hidden">
+          <div class="success-icon">✓</div>
+
+          <h2>Optimization Complete</h2>
+
+          <p class="result-description">
+            Your image has been successfully optimized.
+          </p>
+
+          <div class="result-image-container">
+            <img id="resultImage" class="result-image" alt="Optimized image" />
+          </div>
+
+          <div class="stats">
+            <div class="stat">
+              <span class="stat-label"> Original Size </span>
+
+              <strong id="originalSize"> - </strong>
+            </div>
+
+            <div class="stat">
+              <span class="stat-label"> Optimized Size </span>
+
+              <strong id="optimizedSize"> - </strong>
+            </div>
+
+            <div class="stat highlight">
+              <span class="stat-label"> Storage Reduction </span>
+
+              <strong id="reduction"> - </strong>
+            </div>
+          </div>
+
+          <div class="result-actions">
+            <a
+              id="downloadButton"
+              class="button primary-button"
+              target="_blank"
+            >
+              Download Optimized Image
+            </a>
+
+            <button id="resetButton" class="button secondary-button">
+              Optimize Another Image
+            </button>
+          </div>
+        </div>
+
+        <!-- Error -->
+
+        <div id="errorSection" class="error-section hidden">
+          <div class="error-icon">!</div>
+
+          <h3>Something went wrong</h3>
+
+          <p id="errorMessage">Please try again.</p>
+
+          <button id="retryButton" class="button secondary-button">
+            Try Again
+          </button>
+        </div>
+      </section>
+
+      <!-- Footer -->
+
+      <footer>
+        <p>Powered by AWS Serverless Architecture</p>
+      </footer>
+    </main>
 
     <script src="script.js"></script>
-
-</body>
+  </body>
 </html>
