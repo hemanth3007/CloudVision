@@ -62,6 +62,66 @@ const contentTypeMap = {
 
 /*
 =================================================
+DRAG AND DROP
+=================================================
+*/
+
+uploadArea.addEventListener("dragover", function (event) {
+  event.preventDefault();
+
+  uploadArea.classList.add("drag-over");
+});
+
+uploadArea.addEventListener("dragleave", function () {
+  uploadArea.classList.remove("drag-over");
+});
+
+uploadArea.addEventListener("drop", function (event) {
+  event.preventDefault();
+
+  uploadArea.classList.remove("drag-over");
+
+  const files = event.dataTransfer.files;
+
+  if (!files || files.length === 0) {
+    return;
+  }
+
+  /*
+        -----------------------------------------
+        Use the first dropped file
+        -----------------------------------------
+        */
+
+  const file = files[0];
+
+  /*
+        -----------------------------------------
+        Put dropped file into file input
+        -----------------------------------------
+        */
+
+  try {
+    const dataTransfer = new DataTransfer();
+
+    dataTransfer.items.add(file);
+
+    imageInput.files = dataTransfer.files;
+  } catch (error) {
+    console.log("Could not update file input:", error);
+  }
+
+  /*
+        -----------------------------------------
+        Trigger existing upload flow
+        -----------------------------------------
+        */
+
+  imageInput.dispatchEvent(new Event("change"));
+});
+
+/*
+=================================================
 IMAGE SELECTION
 =================================================
 */

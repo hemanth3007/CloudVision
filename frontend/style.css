@@ -254,6 +254,19 @@ footer {
   font-size: 13px;
 }
 
+/* Drag Drop Feature */
+.upload-area.drag-over {
+  border-style: solid;
+  transform: scale(1.01);
+}
+
+.drop-message {
+  font-size: 14px;
+  color: #888;
+  margin-top: -10px;
+  margin-bottom: 20px;
+}
+
 /* Mobile */
 
 @media (max-width: 600px) {
