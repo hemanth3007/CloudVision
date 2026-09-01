@@ -15,6 +15,7 @@ const resultImage = document.getElementById("resultImage");
 const originalSize = document.getElementById("originalSize");
 const optimizedSize = document.getElementById("optimizedSize");
 const reduction = document.getElementById("reduction");
+const outputFormat = document.getElementById("outputFormat");
 
 const downloadButton = document.getElementById("downloadButton");
 
@@ -239,7 +240,7 @@ async function uploadImage(file) {
 
     /*
         -----------------------------------------
-        Upload to S3
+        Upload directly to S3
         -----------------------------------------
         */
 
@@ -420,7 +421,7 @@ function displayResult(data, originalFileSize) {
 
   /*
     -----------------------------------------
-    Display image
+    Display optimized image
     -----------------------------------------
     */
 
@@ -437,6 +438,20 @@ function displayResult(data, originalFileSize) {
   optimizedSize.textContent = formatFileSize(optimizedFileSize);
 
   reduction.textContent = reductionPercent + "%";
+
+  /*
+    -----------------------------------------
+    Output format
+    -----------------------------------------
+    */
+
+  if (data.key) {
+    const extension = data.key.split(".").pop().toUpperCase();
+
+    outputFormat.textContent = extension;
+  } else {
+    outputFormat.textContent = "Unknown";
+  }
 
   /*
     -----------------------------------------
@@ -622,6 +637,8 @@ function resetApplication() {
   resultSection.classList.add("hidden");
 
   errorSection.classList.add("hidden");
+
+  outputFormat.textContent = "-";
 }
 
 /*
