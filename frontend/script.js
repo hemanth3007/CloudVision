@@ -14,7 +14,6 @@ imageInput.addEventListener("change", async function () {
 
   const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
 
-  // Show image information and preview
   fileInfo.innerHTML = `
         <strong>${file.name}</strong><br>
         Size: ${sizeMB} MB<br>
@@ -28,10 +27,12 @@ imageInput.addEventListener("change", async function () {
   preview.style.display = "block";
 
   try {
-    // Get file extension
+    // -----------------------------------------
+    // Step 1: Determine content type
+    // -----------------------------------------
+
     const extension = file.name.split(".").pop().toLowerCase();
 
-    // Convert extension to MIME type
     const contentTypeMap = {
       jpg: "image/jpeg",
       jpeg: "image/jpeg",
@@ -41,12 +42,14 @@ imageInput.addEventListener("change", async function () {
 
     const contentType = contentTypeMap[extension];
 
-    // Check whether the file format is supported
     if (!contentType) {
       throw new Error("Unsupported image format");
     }
 
-    // Step 1: Request presigned URL from API Gateway
+    // -----------------------------------------
+    // Step 2: Request presigned upload URL
+    // -----------------------------------------
+
     const response = await fetch(API_URL, {
       method: "POST",
 
@@ -60,7 +63,6 @@ imageInput.addEventListener("change", async function () {
       }),
     });
 
-    // Check API response
     if (!response.ok) {
       const errorText = await response.text();
 
@@ -69,10 +71,9 @@ imageInput.addEventListener("change", async function () {
       throw new Error(errorText);
     }
 
-    // Convert API response to JSON
     const data = await response.json();
 
-    console.log("API Response:", data);
+    console.log("Upload API Response:", data);
 
     fileInfo.innerHTML = `
             <strong>${file.name}</strong><br>
@@ -82,7 +83,10 @@ imageInput.addEventListener("change", async function () {
             Uploading image...
         `;
 
-    // Step 2: Upload image directly to S3
+    // -----------------------------------------
+    // Step 3: Upload directly to S3
+    // -----------------------------------------
+
     const uploadResponse = await fetch(data.uploadUrl, {
       method: "PUT",
 
@@ -93,7 +97,6 @@ imageInput.addEventListener("change", async function () {
       body: file,
     });
 
-    // Check S3 upload response
     if (!uploadResponse.ok) {
       const errorText = await uploadResponse.text();
 
@@ -111,6 +114,12 @@ imageInput.addEventListener("change", async function () {
             Image uploaded successfully!<br>
             Processing image...
         `;
+
+    // -----------------------------------------
+    // Step 4: Check processing status
+    // -----------------------------------------
+
+    checkProcessing(data.key, file.size);
   } catch (error) {
     console.error("Error:", error);
 
@@ -121,3 +130,110 @@ imageInput.addEventListener("change", async function () {
         `;
   }
 });
+
+// =================================================
+// Check whether optimized image is ready
+// =================================================
+
+async function checkProcessing(inputKey, originalSize) {
+  try {
+    console.log("Checking processing status...");
+
+    const response = await fetch(API_URL, {
+      method: "POST",
+
+      headers: {
+        "Content-Type": "application/json",
+      },
+
+      body: JSON.stringify({
+        action: "result",
+        key: inputKey,
+      }),
+    });
+
+    const data = await response.json();
+
+    console.log("Processing response:", data);
+
+    // -----------------------------------------
+    // Still processing
+    // -----------------------------------------
+
+    if (response.status === 202) {
+      fileInfo.innerHTML = `
+                <strong>Processing image...</strong><br>
+                Please wait.
+            `;
+
+      setTimeout(function () {
+        checkProcessing(inputKey, originalSize);
+      }, 2000);
+
+      return;
+    }
+
+    // -----------------------------------------
+    // Processing completed
+    // -----------------------------------------
+
+    if (response.ok && data.status === "completed") {
+      displayResult(data, originalSize);
+
+      return;
+    }
+
+    throw new Error(data.error || "Processing failed");
+  } catch (error) {
+    console.error("Processing error:", error);
+
+    fileInfo.innerHTML = `
+            <strong>Processing failed.</strong><br>
+            Please try again.
+        `;
+  }
+}
+
+// =================================================
+// Display optimized image
+// =================================================
+
+function displayResult(data, originalSize) {
+  const optimizedSize = data.size;
+
+  const reduction = ((originalSize - optimizedSize) / originalSize) * 100;
+
+  const reductionPercent = reduction.toFixed(2);
+
+  preview.src = data.downloadUrl;
+
+  preview.style.display = "block";
+
+  fileInfo.innerHTML = `
+        <strong>Optimization Complete!</strong>
+        <br><br>
+
+        Original Size:
+        ${(originalSize / (1024 * 1024)).toFixed(2)} MB
+
+        <br>
+
+        Optimized Size:
+        ${(optimizedSize / (1024 * 1024)).toFixed(2)} MB
+
+        <br>
+
+        Storage Reduction:
+        ${reductionPercent}%
+
+        <br><br>
+
+        <a
+            href="${data.downloadUrl}"
+            download
+            target="_blank"
+        >
+            Download Optimized Image
+        </a>
+    `;
+}
