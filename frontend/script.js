@@ -23,6 +23,7 @@ const API_URL =
 
 let selectedFiles = [];
 let selectedInputKeys = [];
+let batchId = null;
 let previewURL = null;
 let processingTimer = null;
 let isProcessing = false;
@@ -87,6 +88,7 @@ imageInput.addEventListener("change", async function () {
   }
   selectedFiles = files;
   selectedInputKeys = [];
+  batchId = null;
   isProcessing = true;
   showFiles(files);
   await uploadImages(files);
@@ -164,6 +166,10 @@ async function uploadImages(files) {
         "The server did not return upload URLs for all selected images."
       );
     }
+    batchId = data.batchId;
+    if (!batchId) {
+      throw new Error("The server did not return a batch ID.");
+    }
     console.log("Upload API Response:", data);
     selectedInputKeys = data.uploads.map(function (upload) {
       return upload.key;
@@ -202,13 +208,67 @@ async function uploadImages(files) {
       "Optimizing your images...",
       "All images have been uploaded. CloudVision is processing them."
     );
-    /*
-    Batch processing and progress tracking
-    will be implemented in Phase 8.2.
-    */
+    startBatchPolling();
   } catch (error) {
     console.error("Upload error:", error);
     isProcessing = false;
+    showError(getFriendlyError(error));
+  }
+}
+
+function startBatchPolling() {
+  stopProcessingTimer();
+  if (!batchId) {
+    showError("The batch could not be tracked.");
+    return;
+  }
+  checkBatchStatus();
+}
+
+async function checkBatchStatus() {
+  if (!isProcessing || !batchId) {
+    return;
+  }
+  try {
+    console.log("Checking batch status:", batchId);
+    const response = await fetch(API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        action: "status",
+        batchId: batchId,
+      }),
+    });
+    const data = await readJSON(response);
+    console.log("Batch status response:", data);
+    if (!response.ok) {
+      throw new Error(data.error || "Unable to check batch status.");
+    }
+    const total = Number(data.total || 0);
+    const completed = Number(data.completed || 0);
+    if (data.status === "COMPLETED" || completed >= total) {
+      isProcessing = false;
+      stopProcessingTimer();
+      setStatus(
+        "Processing complete!",
+        `All ${total} image${total > 1 ? "s" : ""} have been optimized successfully.`
+      );
+      console.log("Batch completed:", data);
+      return;
+    }
+    setStatus(
+      "Optimizing your images...",
+      `${completed} of ${total} images processed.`
+    );
+    processingTimer = setTimeout(function () {
+      checkBatchStatus();
+    }, 2000);
+  } catch (error) {
+    console.error("Batch status error:", error);
+    isProcessing = false;
+    stopProcessingTimer();
     showError(getFriendlyError(error));
   }
 }
@@ -361,6 +421,7 @@ function resetApplication() {
   isProcessing = false;
   selectedFiles = [];
   selectedInputKeys = [];
+  batchId = null;
   imageInput.value = "";
   if (previewURL) {
     URL.revokeObjectURL(previewURL);
