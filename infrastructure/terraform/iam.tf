@@ -83,6 +83,26 @@ resource "aws_iam_role_policy" "processor_s3" {
   })
 }
 
+# Processor Lambda - DynamoDB permissions
+resource "aws_iam_role_policy" "processor_dynamodb" {
+  name = "CloudVisionBatchTrackingPolicy"
+  role = aws_iam_role.processor.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:UpdateItem"
+        ]
+        Resource = aws_dynamodb_table.batches.arn
+      }
+    ]
+  })
+}
+
 # Upload Lambda - S3 permissions
 resource "aws_iam_role_policy" "upload_s3" {
   name = "CloudVisionUploadPolicy"
@@ -110,6 +130,26 @@ resource "aws_iam_role_policy" "upload_s3" {
           "s3:ListBucket"
         ]
         Resource = "arn:aws:s3:::cloudvision-output-hk2005"
+      }
+    ]
+  })
+}
+
+# Upload Lambda - DynamoDB permissions
+resource "aws_iam_role_policy" "upload_dynamodb" {
+  name = "CloudVisionBatchTrackingPolicy"
+  role = aws_iam_role.upload.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:UpdateItem"
+        ]
+        Resource = aws_dynamodb_table.batches.arn
       }
     ]
   })
