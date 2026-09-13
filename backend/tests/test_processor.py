@@ -80,15 +80,12 @@ def test_lambda_handler():
             read=lambda: data.getvalue()
         )
     }
-
     context = MagicMock()
     context.aws_request_id = "test-request-123"
-
     batch_id = "test-batch-123"
     input_key = f"{batch_id}/test-image.jpg"
     output_key = f"{batch_id}/processed-test-image.webp"
     zip_key = f"{batch_id}/processed-images.zip"
-
     processor.dynamodb.get_item.return_value = {
         "Item": {
             "batchId": {
@@ -125,7 +122,6 @@ def test_lambda_handler():
             }
         }
     }
-
     event = {
         "Records": [
             {
@@ -140,30 +136,22 @@ def test_lambda_handler():
             }
         ]
     }
-
     result = processor.lambda_handler(event, context)
-
     assert result["statusCode"] == 200
-
     # The processor uploads the processed image and the ZIP.
     assert processor.s3.put_object.call_count == 2
-
     put_calls = processor.s3.put_object.call_args_list
-
     # Verify processed image upload.
     image_upload = put_calls[0].kwargs
     assert image_upload["Bucket"] == processor.OUTPUT_BUCKET
     assert image_upload["Key"] == output_key
     assert image_upload["ContentType"] == "image/webp"
-
     # Verify ZIP upload.
     zip_upload = put_calls[1].kwargs
     assert zip_upload["Bucket"] == processor.OUTPUT_BUCKET
     assert zip_upload["Key"] == zip_key
     assert zip_upload["ContentType"] == "application/zip"
-
     # Verify the uploaded data is a ZIP file.
     assert zip_upload["Body"].startswith(b"PK")
-
     processor.dynamodb.update_item.assert_called()
     processor.cloudwatch.put_metric_data.assert_called()

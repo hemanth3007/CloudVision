@@ -126,15 +126,21 @@ function showFiles(files) {
     <br>
     ${formatFileSize(totalSize)}
     <br>
-    ${files.map(function (file) {
-      return escapeHTML(file.name);
-    }).join("<br>")}
+    ${files
+      .map(function (file) {
+        return escapeHTML(file.name);
+      })
+      .join("<br>")}
   `;
 }
 
 async function uploadImages(files) {
   hideError();
   resultSection.classList.add("hidden");
+  const existingBatchDownloads = document.getElementById("batchDownloads");
+  if (existingBatchDownloads) {
+    existingBatchDownloads.remove();
+  }
   statusSection.classList.remove("hidden");
   setStatus(
     "Preparing your images...",
@@ -255,6 +261,7 @@ async function checkBatchStatus() {
         "Processing complete!",
         `All ${total} image${total > 1 ? "s" : ""} have been optimized successfully.`
       );
+      displayBatchResults(data);
       console.log("Batch completed:", data);
       return;
     }
@@ -271,6 +278,71 @@ async function checkBatchStatus() {
     stopProcessingTimer();
     showError(getFriendlyError(error));
   }
+}
+
+function displayBatchResults(data) {
+  statusSection.classList.add("hidden");
+  const completedFiles = (data.files || []).filter(function (file) {
+    return file.status === "COMPLETED" && file.downloadUrl;
+  });
+  if (completedFiles.length === 0) {
+    showError(
+      "The images were processed, but no download links were returned."
+    );
+    return;
+  }
+  const firstFile = completedFiles[0];
+  const originalFile = selectedFiles[0];
+  if (firstFile.downloadUrl) {
+    resultImage.src = firstFile.downloadUrl;
+    downloadButton.href = firstFile.downloadUrl;
+    downloadButton.download = "";
+  }
+  originalSize.textContent = originalFile
+    ? formatFileSize(originalFile.size)
+    : "-";
+  optimizedSize.textContent = "-";
+  reduction.textContent = "-";
+  if (firstFile.outputKey) {
+    outputFormat.textContent = firstFile.outputKey
+      .split(".")
+      .pop()
+      .toUpperCase();
+  } else {
+    outputFormat.textContent = "-";
+  }
+  let downloadContainer = document.getElementById("batchDownloads");
+  if (!downloadContainer) {
+    downloadContainer = document.createElement("div");
+    downloadContainer.id = "batchDownloads";
+    downloadContainer.className = "batch-downloads";
+    resultSection.appendChild(downloadContainer);
+  }
+  downloadContainer.innerHTML = "";
+  completedFiles.forEach(function (file, index) {
+    const link = document.createElement("a");
+    link.href = file.downloadUrl;
+    link.className = "download-button";
+    link.textContent = `Download Image ${index + 1}`;
+    link.setAttribute("download", "");
+    link.target = "_blank";
+    link.rel = "noopener";
+    downloadContainer.appendChild(link);
+  });
+  if (data.zipDownloadUrl) {
+    const zipLink = document.createElement("a");
+    zipLink.href = data.zipDownloadUrl;
+    zipLink.className = "download-button";
+    zipLink.textContent = "Download ZIP";
+    zipLink.setAttribute(
+      "download",
+      "cloudvision-processed-images.zip"
+    );
+    zipLink.target = "_blank";
+    zipLink.rel = "noopener";
+    downloadContainer.appendChild(zipLink);
+  }
+  resultSection.classList.remove("hidden");
 }
 
 async function checkProcessing(inputKey, originalFileSize) {
@@ -433,7 +505,10 @@ function resetApplication() {
   resultSection.classList.add("hidden");
   errorSection.classList.add("hidden");
   outputFormat.textContent = "-";
+  const batchDownloads = document.getElementById("batchDownloads");
+  if (batchDownloads) {
+    batchDownloads.remove();
+  }
 }
-
 resetButton.addEventListener("click", resetApplication);
 retryButton.addEventListener("click", resetApplication);
