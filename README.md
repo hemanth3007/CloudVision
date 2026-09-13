@@ -1,76 +1,116 @@
-CloudVision
+🚀 CloudVision
 
-CloudVision is a serverless image optimization application built on AWS. It allows users to upload up to three images at once, process them independently using AWS Lambda, track batch progress, and download the optimized images individually or as a ZIP archive.
+<p align="center">
+  <img src="https://img.shields.io/badge/AWS-Serverless-orange?style=for-the-badge&logo=amazon-aws" alt="AWS Serverless">
+  <img src="https://img.shields.io/badge/Python-3.14-blue?style=for-the-badge&logo=python" alt="Python">
+  <img src="https://img.shields.io/badge/Terraform-IaC-7B42BC?style=for-the-badge&logo=terraform" alt="Terraform">
+  <img src="https://img.shields.io/badge/Tests-7%20Passed-success?style=for-the-badge&logo=pytest" alt="Tests">
+</p>
 
-The project demonstrates a practical event-driven serverless architecture using AWS services, Infrastructure as Code with Terraform, automated testing, observability, and a frontend application.
+<p align="center">
+  <strong>A production-style serverless image optimization platform built on AWS.</strong>
+</p>
 
-Features
+<p align="center">
+  Upload up to <strong>3 images</strong> → Process them independently → Track progress → Download optimized images or a ZIP archive.
+</p>
 
-Upload up to 3 images per batch
+✨ Project Highlights
 
-Supports JPG, JPEG, PNG, and WebP input
+Feature
 
-Client-side image previews
+Status
 
-Displays selected filenames and file sizes
+🖼️ Multi-image upload
 
-Secure direct uploads to Amazon S3 using presigned URLs
+✅
 
-Event-driven image processing
+⚡ Serverless image processing
 
-Image optimization using Pillow
+✅
 
-Automatic WebP output
+📊 Batch progress tracking
 
-Batch progress tracking
+✅
 
-Per-image processing status
+🗜️ Automatic ZIP generation
 
-DynamoDB-based batch state management
+✅
 
-Automatic ZIP generation after batch completion
+📥 Individual downloads
 
-Individual optimized-image downloads
+✅
 
-ZIP download containing all processed images
+📦 ZIP download
 
-Temporary presigned download URLs
+✅
 
-Error handling and retry flow
+🔐 Presigned S3 URLs
 
-Automated processor unit tests
+✅
 
-Terraform infrastructure configuration
+🧪 Automated tests
 
-CloudWatch logging and monitoring
+7/7 Passed
 
-Serverless architecture with no continuously running server
+🏗️ Terraform infrastructure
 
-Architecture
+✅
+
+📈 CloudWatch observability
+
+✅
+
+🌐 Production frontend
+
+🚧 Next
+
+<mark>CloudVision Backend is already deployed and operational on AWS.</mark>
+
+🎯 What is CloudVision?
+
+CloudVision is a serverless image optimization application designed to demonstrate a real-world AWS event-driven architecture.
+
+Users can select up to three images, upload them directly to Amazon S3 using secure presigned URLs, and have each image processed independently by AWS Lambda.
+
+Once processing is complete, users can:
+
+👁️ View processed images
+
+📥 Download individual images
+
+📦 Download all processed images as a ZIP file
+
+📊 Track batch progress in real time
+
+The project was built with a focus on serverless architecture, scalability, security, Infrastructure as Code, testing, and observability.
+
+🏗️ Architecture
 
                          ┌──────────────────────┐
-                         │      Frontend        │
-                         │  HTML / CSS / JS     │
+                         │      FRONTEND        │
+                         │    HTML / CSS / JS   │
                          └──────────┬───────────┘
                                     │
-                                    │ HTTPS
+                                  HTTPS
+                                    │
                                     ▼
                          ┌──────────────────────┐
-                         │     API Gateway      │
+                         │     API GATEWAY      │
                          └──────────┬───────────┘
                                     │
                                     ▼
                          ┌──────────────────────┐
-                         │    Upload Lambda     │
+                         │    UPLOAD LAMBDA     │
                          │ cloudvision-upload-  │
                          │       image         │
                          └──────────┬───────────┘
                                     │
-                         Presigned PUT URLs
+                           Presigned PUT URLs
                                     │
                                     ▼
                     ┌─────────────────────────────┐
-                    │       S3 Input Bucket       │
+                    │        S3 INPUT             │
                     │  cloudvision-input-hk2005   │
                     └──────────────┬──────────────┘
                                    │
@@ -78,46 +118,50 @@ Architecture
                                    │
                                    ▼
                     ┌─────────────────────────────┐
-                    │     Processor Lambda        │
+                    │      PROCESSOR LAMBDA       │
                     │    CloudVisionProcessor     │
                     │                             │
-                    │          Pillow             │
+                    │           Pillow            │
                     │      Image Optimization     │
                     └──────────────┬──────────────┘
                                    │
                                    ▼
                     ┌─────────────────────────────┐
-                    │      S3 Output Bucket       │
+                    │        S3 OUTPUT            │
                     │ cloudvision-output-hk2005   │
-                    └──────────────┬──────────────┘
-                                   │
-                    ┌──────────────▼──────────────┐
-                    │         DynamoDB            │
-                    │      CloudVisionBatches     │
-                    │                             │
-                    │  Batch / Progress / Status  │
                     └──────────────┬──────────────┘
                                    │
                                    ▼
                     ┌─────────────────────────────┐
-                    │       ZIP Generation        │
+                    │          DYNAMODB            │
+                    │      CloudVisionBatches      │
+                    │                              │
+                    │   Batch / Progress / Status  │
+                    └──────────────┬──────────────┘
+                                   │
+                            All images done
+                                   │
+                                   ▼
+                    ┌─────────────────────────────┐
+                    │       ZIP GENERATION        │
                     │    processed-images.zip     │
                     └──────────────┬──────────────┘
                                    │
                                    ▼
-                         Presigned Downloads
+                         Temporary Presigned
+                            Download URLs
                                    │
                                    ▼
                          ┌──────────────────────┐
-                         │       Frontend       │
-                         │ Image / ZIP Download │
+                         │      FRONTEND        │
+                         │  Image / ZIP Download│
                          └──────────────────────┘
 
-How CloudVision Works
+🔄 How It Works
 
-1. User selects images
+1️⃣ Select Images
 
-The frontend allows the user to select a maximum of three images.
+The user selects up to 3 images.
 
 Supported formats:
 
@@ -129,72 +173,67 @@ PNG
 
 WebP
 
-The frontend displays a preview of each selected image along with its filename and size.
+2️⃣ Create Upload Batch
 
-2. Frontend requests upload URLs
-
-The frontend sends the selected filenames and content types to the Upload Lambda through API Gateway.
+The frontend calls the API Gateway endpoint.
 
 The Upload Lambda:
 
-Creates a unique batch ID.
+Generates a unique batch ID.
 
-Creates the DynamoDB batch record.
+Creates a DynamoDB batch record.
 
 Generates presigned S3 upload URLs.
 
-Returns the URLs and batch ID to the frontend.
+Returns the URLs to the frontend.
 
-3. Images are uploaded directly to S3
+3️⃣ Direct S3 Upload
 
-The browser uploads each image directly to the S3 input bucket using its presigned URL.
+The browser uploads images directly to Amazon S3.
 
-The images do not need to pass through the Lambda function. This reduces unnecessary Lambda workload and allows Amazon S3 to handle the file transfer.
+Browser
+   │
+   │ Presigned PUT
+   ▼
+S3 Input Bucket
 
-4. S3 triggers image processing
+This avoids sending image data through Lambda and reduces unnecessary backend processing.
 
-After an image is uploaded, an S3 object-created event triggers:
+4️⃣ Event-Driven Processing
+
+When an image arrives in the input bucket, S3 generates an object-created event.
+
+That event triggers:
 
 CloudVisionProcessor
 
-Each image can therefore be processed independently.
+Each image is processed independently.
 
-5. Lambda optimizes the image
+5️⃣ Image Optimization
 
-The Processor Lambda uses Pillow to:
+The processor uses Pillow to:
 
-Read the original image
+Read the image
 
-Process the image
+Resize oversized images
 
-Resize when necessary
+Optimize the image
 
-Optimize the output
-
-Convert the result to WebP
+Convert the output to WebP
 
 Upload the processed image to the output bucket
 
-The processor is configured with:
+6️⃣ Batch Progress Tracking
 
-Memory: 512 MB
-Timeout: 30 seconds
-Runtime: Python 3.14
-Architecture: x86_64
+DynamoDB stores the state of every batch.
 
-6. DynamoDB tracks progress
+Example:
 
-The batch record tracks the processing state.
+Total:       3
+Completed:   2
+Status:      PROCESSING
 
-For example:
-
-Total:     3
-Completed: 1
-Status:    PROCESSING
-
-The frontend periodically checks the batch status and updates the UI.
-
-The progress therefore becomes:
+The frontend polls the API and updates the progress.
 
 0 / 3
   ↓
@@ -203,74 +242,80 @@ The progress therefore becomes:
 2 / 3
   ↓
 3 / 3
+  ↓
+COMPLETED
 
-7. ZIP generation
+7️⃣ ZIP Generation
 
-When all images in the batch are successfully processed, CloudVision creates:
+When every image in the batch is successfully processed:
 
 processed-images.zip
 
-The ZIP contains the processed images belonging to that batch.
+is generated automatically.
 
-ZIP generation uses an in-memory io.BytesIO buffer rather than relying on a persistent local filesystem.
+The ZIP is created using an in-memory io.BytesIO() buffer.
 
-8. Downloads
+8️⃣ Secure Downloads
 
-The application provides temporary presigned download URLs.
+The backend generates temporary presigned download URLs.
 
 Users can download:
 
-Individual processed images
+Individual optimized images
 
-The complete batch as a ZIP file
+The complete ZIP archive
 
-The S3 buckets do not need to be publicly accessible for users to download their results.
+<mark>The S3 output bucket does not need to be publicly accessible.</mark>
 
-AWS Services Used
+☁️ AWS Services
 
-Service
+AWS Service
 
 Purpose
 
-Amazon S3
+🪣 Amazon S3
 
-Stores input and processed images
+Input and processed image storage
 
-AWS Lambda
+⚡ AWS Lambda
 
 Upload URL generation and image processing
 
-Amazon API Gateway
+🌐 API Gateway
 
-HTTP API endpoint
+HTTP API
 
-Amazon DynamoDB
+🗄️ DynamoDB
 
 Batch and progress tracking
 
-Amazon CloudWatch
+📊 CloudWatch
 
 Logs and monitoring
 
-AWS IAM
+🔐 IAM
 
-Permissions and roles
+Permissions and execution roles
 
-Terraform
+🏗️ Terraform
 
 Infrastructure as Code
 
-AWS Configuration
+🌍 CloudFront
+
+Planned production frontend hosting
+
+⚙️ AWS Configuration
 
 Region
 
 ap-south-1
 
-S3 Input Bucket
+Input Bucket
 
 cloudvision-input-hk2005
 
-S3 Output Bucket
+Output Bucket
 
 cloudvision-output-hk2005
 
@@ -290,7 +335,45 @@ Maximum Batch Size
 
 3 images
 
-Project Structure
+🖼️ Image Processing Configuration
+
+Setting
+
+Value
+
+JPEG Quality
+
+85
+
+WebP Quality
+
+85
+
+Maximum Dimension
+
+1600 px
+
+Output Format
+
+WebP
+
+Processor Memory
+
+512 MB
+
+Processor Timeout
+
+30 seconds
+
+Runtime
+
+Python 3.14
+
+Architecture
+
+x86_64
+
+📁 Project Structure
 
 CloudVision/
 │
@@ -322,197 +405,21 @@ CloudVision/
 ├── .gitignore
 └── README.md
 
-Local Frontend Setup
-
-The frontend is a static HTML, CSS, and JavaScript application.
-
-It can be run locally using a development server such as VS Code Live Server.
-
-Open:
-
-frontend/index.html
-
-The local application can be accessed at:
-
-http://127.0.0.1:5500/frontend/index.html
-
-The frontend communicates with the deployed AWS backend through API Gateway.
-
-Backend API
-
-The application uses the deployed API endpoint:
-
-https://j79eb6dc77.execute-api.ap-south-1.amazonaws.com/upload
-
-The frontend communicates with this endpoint to:
-
-Create upload batches
-
-Obtain presigned upload URLs
-
-Check batch processing status
-
-Obtain presigned download URLs
-
-Image Processing
-
-The Processor Lambda uses the Pillow library.
-
-Current optimization configuration:
-
-JPEG Quality: 85
-WebP Quality: 85
-Maximum Dimension: 1600
-
-Processed images are generated in WebP format.
-
-Batch Processing
-
-CloudVision intentionally limits each batch to three images.
-
-Example:
-
-User selects:
-
-image1.jpg
-image2.png
-image3.webp
-
-        ↓
-
-Batch created
-
-        ↓
-
-3 presigned upload URLs
-
-        ↓
-
-S3 Input
-
-        ↓
-
-3 independent S3 events
-
-        ↓
-
-3 Lambda processing operations
-
-        ↓
-
-DynamoDB:
-
-Total     = 3
-Completed = 3
-Status    = COMPLETED
-
-        ↓
-
-processed-images.zip
-
-        ↓
-
-Downloads
-
-Frontend Workflow
-
-The frontend provides the following user experience:
-
-Select up to 3 images
-        ↓
-Preview selected images
-        ↓
-Upload images
-        ↓
-Show upload status
-        ↓
-Show processing progress
-        ↓
-Display processed images
-        ↓
-Provide individual downloads
-        ↓
-Generate ZIP after batch completion
-        ↓
-Provide ZIP download
-
-The UI tracks each image independently while also displaying overall batch progress.
-
-Error Handling
-
-The application includes error handling across the workflow.
-
-Examples include:
-
-Unsupported file format
-
-More than 3 selected images
-
-Failed upload
-
-Failed API request
-
-Failed batch status request
-
-Failed image processing
-
-Failed ZIP generation
-
-The frontend displays a user-friendly error message and provides a retry/reset option.
-
-Important Bug Fixed During Phase 8
-
-During Phase 8 testing, the Processor Lambda successfully processed an image but failed while updating DynamoDB.
-
-The problem was caused by:
-
-total
-
-being a reserved DynamoDB keyword.
-
-The DynamoDB update expression was corrected by using an expression attribute name alias.
-
-After the fix, the processor successfully updated batch progress and the batch workflow completed correctly.
-
-ZIP Generation
-
-After all images in a batch are processed successfully, CloudVision creates:
-
-processed-images.zip
-
-The ZIP contains the processed output images for that batch.
-
-The implementation uses:
-
-io.BytesIO()
-
-for in-memory ZIP creation.
-
-This avoids depending on a persistent local filesystem.
-
-Secure Downloads
-
-Processed files are stored in the S3 output bucket.
-
-The application does not make the output bucket publicly accessible.
-
-Instead, the backend generates temporary presigned download URLs.
-
-This allows users to download their files without exposing the S3 bucket publicly.
-
-Testing
+🧪 Testing
 
 Processor unit tests were executed using:
 
 pytest .\backend\tests\test_processor.py -v
 
-Final result:
+Result
 
-7 passed
+<p align="center">
 
-End-to-End Testing
+✅ 7 / 7 TESTS PASSED
 
-The following functionality was tested successfully:
+</p>
+
+End-to-end functionality was also verified:
 
 Test
 
@@ -520,158 +427,107 @@ Result
 
 Single-image processing
 
-Passed
+✅
 
 Two-image batch
 
-Passed
+✅
 
 Three-image batch
 
-Passed
+✅
 
 JPG input
 
-Passed
+✅
 
 PNG input
 
-Passed
+✅
 
 WebP input
 
-Passed
-
-Batch progress tracking
-
-Passed
+✅
 
 S3 event processing
 
-Passed
+✅
 
-Individual image download
+DynamoDB progress tracking
 
-Passed
+✅
+
+Individual download
+
+✅
 
 ZIP generation
 
-Passed
+✅
 
 ZIP download
 
-Passed
+✅
 
 ZIP contents
 
-Passed
+✅
 
 Frontend reset
 
-Passed
+✅
 
-Infrastructure as Code
+🐛 Important Production Bug Fixed
 
-Terraform configuration is located in:
+During Phase 8 testing, the Processor Lambda successfully processed images but failed while updating DynamoDB.
 
-infrastructure/terraform/
+The cause was the DynamoDB reserved keyword:
 
-Main Terraform files:
+total
 
-provider.tf
-s3.tf
-dynamodb.tf
-iam.tf
-lambda.tf
-api_gateway.tf
+The update expression was corrected by using an Expression Attribute Name alias.
 
-Terraform is used to define and maintain the AWS infrastructure.
+After the fix:
 
-Application source code for Lambda functions is deployed separately.
+Image Processing
+       ↓
+DynamoDB Progress Update
+       ↓
+Batch Completion
+       ↓
+ZIP Generation
+       ↓
+Downloads
 
-Deployment Status
+worked correctly.
 
-Backend
+🔐 Security
 
-The AWS backend is deployed and operational.
+CloudVision follows several security practices:
 
-API Gateway       ✓
-Upload Lambda     ✓
-Processor Lambda  ✓
-S3 Input          ✓
-S3 Output         ✓
-DynamoDB          ✓
-CloudWatch        ✓
+🔑 Presigned URLs for uploads
 
-Frontend
+📥 Presigned URLs for downloads
 
-The frontend currently runs locally using a development server.
+🔐 IAM-based Lambda permissions
 
-http://127.0.0.1:5500/frontend/index.html
+🚫 No AWS credentials in frontend JavaScript
 
-The next deployment step is to host the frontend using Amazon S3 and Amazon CloudFront.
+🪣 Separate input and output buckets
 
-Production Deployment Plan
+⏱️ Temporary download URLs
 
-The planned production architecture is:
+🌐 API Gateway for controlled backend access
 
-                    Internet
-                       │
-                       ▼
-                ┌──────────────┐
-                │  CloudFront  │
-                │    HTTPS     │
-                └──────┬───────┘
-                       │
-                       ▼
-                ┌──────────────┐
-                │ S3 Frontend  │
-                │    Bucket    │
-                └──────────────┘
+🏗️ Infrastructure managed with Terraform
 
-                       │
-                       │ API Requests
-                       ▼
+💰 Serverless Cost Model
 
-                ┌──────────────┐
-                │ API Gateway  │
-                └──────┬───────┘
-                       │
-                       ▼
-                AWS Serverless
-                   Backend
+CloudVision does not require an always-running backend server.
 
-The production frontend will be hosted in Amazon S3 and delivered through Amazon CloudFront.
+Potential AWS usage costs come from:
 
-This will provide a public HTTPS URL instead of the current localhost development URL.
-
-Security Considerations
-
-CloudVision uses several security mechanisms:
-
-S3 presigned URLs for uploads
-
-S3 presigned URLs for downloads
-
-IAM roles for Lambda permissions
-
-Separate input and output S3 buckets
-
-API Gateway for backend API access
-
-Temporary download URLs
-
-No AWS credentials inside frontend JavaScript
-
-Infrastructure managed through Terraform
-
-Cost Considerations
-
-CloudVision uses serverless AWS services that generally charge based on usage.
-
-Potential usage-based services include:
-
-AWS Lambda invocations and compute duration
+AWS Lambda invocations and execution time
 
 S3 storage and requests
 
@@ -683,141 +539,319 @@ CloudWatch logs
 
 CloudFront requests and data transfer after production deployment
 
-The application does not require an always-running backend server.
+The current batch limit of 3 images also keeps the application lightweight and predictable for a portfolio project.
 
-Future Improvements
+🖥️ Run the Frontend Locally
 
-Possible future improvements include:
+The frontend is a static HTML/CSS/JavaScript application.
 
-User authentication
+For local development, use a development server such as VS Code Live Server.
 
-Larger batch sizes
+Open:
 
-Image quality selection
+frontend/index.html
 
-Output format selection
+Example local address:
 
-Compression statistics
+http://127.0.0.1:5500/frontend/index.html
 
-Display optimized file sizes
+The local frontend communicates with the deployed AWS backend.
 
-Display percentage storage reduction
+🔗 Backend API
 
-Authentication-based user history
+The deployed API endpoint is:
 
-Automatic cleanup of old files
+https://j79eb6dc77.execute-api.ap-south-1.amazonaws.com/upload
 
-CloudFront production deployment
+It is used for:
 
-Custom domain
+Creating upload batches
 
-Additional image-processing options
+Generating presigned upload URLs
 
-More detailed monitoring dashboards
+Checking batch status
 
-Project Progress
+Obtaining presigned download URLs
 
-Phase 1  ✓
-Phase 2  ✓
-Phase 3  ✓
-Phase 4  ✓
-Phase 5  ✓
-Phase 6  ✓
-Phase 7  ✓
-Phase 8  ✓
+🏗️ Infrastructure as Code
 
-Current status:
+Terraform configuration is located at:
 
-CloudVision Backend:              DEPLOYED ✓
-CloudVision Frontend:             LOCAL ✓
-Multi-Image Processing:           COMPLETE ✓
-Batch Tracking:                   COMPLETE ✓
-ZIP Generation:                   COMPLETE ✓
-Individual Downloads:             COMPLETE ✓
-ZIP Downloads:                    COMPLETE ✓
-Automated Tests:                  PASSED ✓
-Phase 8:                          COMPLETE ✓
-Production Frontend Deployment:   NEXT
+infrastructure/terraform/
 
-Key Technologies
+Main configuration files:
 
-Frontend
-- HTML5
-- CSS3
-- JavaScript
+provider.tf
+s3.tf
+dynamodb.tf
+iam.tf
+lambda.tf
+api_gateway.tf
+
+Terraform manages the AWS infrastructure while Lambda application source code is deployed separately.
+
+🚀 Deployment Status
 
 Backend
-- Python
-- AWS Lambda
-- Pillow
 
-AWS
-- Amazon S3
-- AWS Lambda
-- Amazon API Gateway
-- Amazon DynamoDB
-- Amazon CloudWatch
-- AWS IAM
-- Amazon CloudFront (planned)
+Component
 
-Infrastructure
-- Terraform
-
-Testing
-- Pytest
-
-What This Project Demonstrates
-
-CloudVision demonstrates practical experience with:
-
-Serverless architecture
-
-Event-driven architecture
-
-AWS Lambda
-
-Amazon S3
+Status
 
 API Gateway
 
+🟢 DEPLOYED
+
+Upload Lambda
+
+🟢 DEPLOYED
+
+Processor Lambda
+
+🟢 DEPLOYED
+
+S3 Input
+
+🟢 ACTIVE
+
+S3 Output
+
+🟢 ACTIVE
+
 DynamoDB
 
-IAM
+🟢 ACTIVE
 
 CloudWatch
 
-Presigned URLs
+🟢 ACTIVE
 
-Batch processing
+Frontend
 
-Asynchronous processing
+🟡 Currently running locally
 
-Image optimization
+Production frontend deployment is the next step.
 
-ZIP file generation
+🌍 Production Deployment Plan
 
-Infrastructure as Code
+The planned production frontend architecture is:
 
-Terraform
+                    🌐 Internet
+                         │
+                         ▼
+                 ┌──────────────┐
+                 │  CloudFront  │
+                 │    HTTPS     │
+                 └──────┬───────┘
+                        │
+                        ▼
+                 ┌──────────────┐
+                 │ S3 Frontend  │
+                 │    Bucket    │
+                 └──────┬───────┘
+                        │
+                        │ API Requests
+                        ▼
+                 ┌──────────────┐
+                 │ API Gateway  │
+                 └──────┬───────┘
+                        │
+                        ▼
+                 AWS Serverless
+                    Backend
 
-Python
+This will replace the current localhost frontend with a public HTTPS application.
+
+📈 Project Progress
+
+Phase
+
+Description
+
+Status
+
+1
+
+Initial project setup
+
+✅
+
+2
+
+S3 bucket infrastructure
+
+✅
+
+3
+
+Core backend
+
+✅
+
+4
+
+Frontend integration
+
+✅
+
+5
+
+Production improvements
+
+✅
+
+6
+
+Observability & reliability
+
+✅
+
+7
+
+Frontend & project structure
+
+✅
+
+8
+
+Multi-image processing & downloads
+
+✅
+
+9
+
+Production deployment
+
+🚧 Next
+
+<mark>Phase 8 is complete. The AWS backend is deployed and the complete multi-image workflow has been tested successfully.</mark>
+
+🧰 Technology Stack
+
+Frontend
+
+HTML5
+
+CSS3
 
 JavaScript
 
-Automated testing
+Backend
 
-Error handling
+Python
 
-Observability
+AWS Lambda
 
-Cloud architecture design
+Pillow
 
-Author
+AWS
+
+Amazon S3
+
+AWS Lambda
+
+Amazon API Gateway
+
+Amazon DynamoDB
+
+Amazon CloudWatch
+
+AWS IAM
+
+Amazon CloudFront (planned)
+
+Infrastructure
+
+Terraform
+
+Testing
+
+Pytest
+
+💡 What This Project Demonstrates
+
+CloudVision demonstrates hands-on experience with:
+
+☁️ Serverless architecture
+
+🔄 Event-driven architecture
+
+⚡ AWS Lambda
+
+🪣 Amazon S3
+
+🌐 API Gateway
+
+🗄️ DynamoDB
+
+🔐 IAM
+
+📊 CloudWatch
+
+🔑 Presigned URLs
+
+📦 Batch processing
+
+🔀 Asynchronous workflows
+
+🖼️ Image optimization
+
+🗜️ ZIP generation
+
+🏗️ Infrastructure as Code
+
+🧪 Automated testing
+
+🛡️ Error handling
+
+📈 Observability
+
+💻 Python backend development
+
+🌐 JavaScript frontend development
+
+🔮 Future Improvements
+
+Potential future improvements:
+
+🔐 User authentication
+
+📦 Larger batch sizes
+
+🎚️ Image quality selection
+
+🖼️ Multiple output formats
+
+📊 Compression statistics
+
+💾 Storage reduction percentage
+
+🧹 Automatic cleanup of old files
+
+👤 User-specific processing history
+
+🌍 CloudFront production deployment
+
+🔗 Custom domain
+
+📈 Advanced monitoring dashboard
+
+🖼️ Additional image-processing options
+
+👨‍💻 Author
 
 Hemanth K
 
-CloudVision is a personal AWS serverless project created to demonstrate cloud architecture, event-driven processing, infrastructure as code, backend development, frontend integration, testing, observability, and production deployment practices.
+CloudVision is a personal AWS serverless project created to demonstrate practical skills in cloud architecture, backend development, event-driven processing, Infrastructure as Code, testing, observability, and production deployment.
 
-License
+<p align="center">
+  <strong>⭐ If you find this project useful, consider giving the repository a star!</strong>
+</p>
+
+<p align="center">
+  Built with ☁️ AWS + 🐍 Python + 🏗️ Terraform + ❤️
+</p>
+
+📄 License
 
 This project is intended for educational and portfolio purposes.
