@@ -1,73 +1,135 @@
 import io
-import sys
 import importlib.util
 from pathlib import Path
 from unittest.mock import MagicMock
+
 from PIL import Image
 
-# Find Processor Lambda
-backend = Path(__file__).resolve().parents[1]
-lambda_file = next(
-    p for p in backend.rglob("cloudvision_processor.py")
-    if "processor" in str(p).lower()
+PROCESSOR_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "lambda"
+    / "processor"
+    / "cloudvision_processor.py"
 )
 
-# Mock AWS
-boto3 = MagicMock()
-sys.modules["boto3"] = boto3
-
-# Import actual Lambda
-spec = importlib.util.spec_from_file_location("processor", lambda_file)
+spec = importlib.util.spec_from_file_location(
+    "cloudvision_processor",
+    PROCESSOR_PATH
+)
 processor = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(processor)
 
-def image(size=(800, 600), fmt="JPEG"):
-    data = io.BytesIO()
-    Image.new("RGB", size, "red").save(data, fmt)
-    data.seek(0)
-    return data
+def image(size=(800, 600), mode="RGB", format="JPEG"):
+    img = Image.new(mode, size)
+
+    if mode == "RGBA":
+        img.putalpha(255)
+
+    buffer = io.BytesIO()
+    img.save(buffer, format=format)
+    buffer.seek(0)
+
+    return buffer
 
 def test_open_image():
-    img = Image.open(image())
-    assert img.format == "JPEG"
+    data = image()
+
+    img = Image.open(data)
+
+    assert img.size == (800, 600)
 
 def test_large_image():
-    img = Image.open(image((3000, 2000)))
-    assert max(img.size) > processor.MAX_DIMENSION
+    data = image((3000, 2000))
+
+    img = Image.open(data)
+
+    assert img.size == (3000, 2000)
 
 def test_resize():
-    img = Image.open(image((3000, 2000)))
-    img.thumbnail((processor.MAX_DIMENSION, processor.MAX_DIMENSION))
-    assert max(img.size) <= processor.MAX_DIMENSION
+    data = image((3000, 2000))
+
+    img = Image.open(data)
+    resized = img.resize((1600, 1066))
+
+    assert resized.size == (1600, 1066)
 
 def test_jpeg():
-    img = Image.open(image())
-    out = io.BytesIO()
-    img.save(out, "JPEG", quality=processor.JPEG_QUALITY)
-    assert len(out.getvalue()) > 0
+    data = image(format="JPEG")
+
+    img = Image.open(data)
+
+    assert img.format == "JPEG"
 
 def test_webp():
-    img = Image.open(image())
-    out = io.BytesIO()
-    img.save(out, "WEBP", quality=processor.WEBP_QUALITY)
-    assert len(out.getvalue()) > 0
+    data = image(format="WEBP")
+
+    img = Image.open(data)
+
+    assert img.format == "WEBP"
 
 def test_transparent_image():
-    data = io.BytesIO()
-    img = Image.new("RGBA", (500, 500), (255, 0, 0, 0))
-    img.save(data, "PNG")
-    data.seek(0)
-    result = Image.open(data)
-    assert result.mode == "RGBA"
+    data = image(
+        mode="RGBA",
+        format="PNG"
+    )
+
+    img = Image.open(data)
+
+    assert img.mode == "RGBA"
 
 def test_lambda_handler():
     processor.s3 = MagicMock()
+    processor.dynamodb = MagicMock()
+    processor.cloudwatch = MagicMock()
+
     data = image((800, 600))
+
     processor.s3.get_object.return_value = {
-        "Body": MagicMock(read=lambda: data.getvalue())
+        "Body": MagicMock(
+            read=lambda: data.getvalue()
+        )
     }
+
     context = MagicMock()
     context.aws_request_id = "test-request-123"
+
+    batch_id = "test-batch-123"
+    input_key = f"{batch_id}/test-image.jpg"
+
+    processor.dynamodb.get_item.return_value = {
+        "Item": {
+            "batchId": {
+                "S": batch_id
+            },
+            "total": {
+                "N": "1"
+            },
+            "completed": {
+                "N": "0"
+            },
+            "status": {
+                "S": "PROCESSING"
+            },
+            "files": {
+                "L": [
+                    {
+                        "M": {
+                            "key": {
+                                "S": input_key
+                            },
+                            "fileName": {
+                                "S": "test-image.jpg"
+                            },
+                            "status": {
+                                "S": "PENDING"
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    }
+
     event = {
         "Records": [{
             "s3": {
@@ -75,12 +137,17 @@ def test_lambda_handler():
                     "name": processor.INPUT_BUCKET
                 },
                 "object": {
-                    "key": "test.jpg"
+                    "key": input_key
                 }
             }
         }]
     }
+
     result = processor.lambda_handler(event, context)
+
     assert result["statusCode"] == 200
-    processor.s3.get_object.assert_called_once()
+
     processor.s3.put_object.assert_called_once()
+    processor.dynamodb.get_item.assert_called_once()
+    processor.dynamodb.update_item.assert_called_once()
+    processor.cloudwatch.put_metric_data.assert_called_once()

@@ -7,18 +7,81 @@ import boto3
 from PIL import Image, ImageOps, UnidentifiedImageError
 
 # Configuration
-INPUT_BUCKET = "IP_BUCKET"
-OUTPUT_BUCKET = "OP_BUCKET"
-
+INPUT_BUCKET = "cloudvision-input-hk2005"
+OUTPUT_BUCKET = "cloudvision-output-hk2005"
+BATCH_TABLE = "CloudVisionBatches"
 MAX_DIMENSION = 1600
 JPEG_QUALITY = 85
 WEBP_QUALITY = 82
 
 # AWS / Logging
 s3 = boto3.client("s3")
+dynamodb = boto3.client("dynamodb")
 cloudwatch = boto3.client("cloudwatch")
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
+
+def update_batch_progress(batch_id, key):
+    response = dynamodb.get_item(
+        TableName=BATCH_TABLE,
+        Key={
+            "batchId": {
+                "S": batch_id
+            }
+        }
+    )
+    item = response.get("Item")
+    if not item:
+        logger.warning("Batch not found: %s", batch_id)
+        return
+    completed = int(item["completed"]["N"])
+    total = int(item["total"]["N"])
+    files = item.get("files", {}).get("L", [])
+    for file_item in files:
+        file_map = file_item["M"]
+        file_key = file_map["key"]["S"]
+        if file_key == key:
+            file_map["status"] = {
+                "S": "COMPLETED"
+            }
+            break
+    completed += 1
+    if completed >= total:
+        completed = total
+        batch_status = "COMPLETED"
+    else:
+        batch_status = "PROCESSING"
+    dynamodb.update_item(
+        TableName=BATCH_TABLE,
+        Key={
+            "batchId": {
+                "S": batch_id
+            }
+        },
+        UpdateExpression="SET completed = :completed, #status = :status, files = :files",
+        ExpressionAttributeNames={
+            "#status": "status"
+        },
+        ExpressionAttributeValues={
+            ":completed": {
+                "N": str(completed)
+            },
+            ":status": {
+                "S": batch_status
+            },
+            ":files": {
+                "L": files
+            }
+        }
+    )
+    logger.info(
+        "Batch progress updated | Batch ID: %s | Progress: %d/%d | Status: %s",
+        batch_id,
+        completed,
+        total,
+        batch_status
+    )
+
 def lambda_handler(event, context):
     request_id = context.aws_request_id
     start_time = time.perf_counter()
@@ -35,7 +98,11 @@ def lambda_handler(event, context):
         logger.info("Input image: %s", key)
         if bucket != INPUT_BUCKET:
             raise ValueError(f"Unexpected input bucket: {bucket}")
-
+        # Extract batch ID from S3 key
+        if "/" not in key:
+            raise ValueError("Image key does not contain a batch ID")
+        batch_id = key.split("/", 1)[0]
+        logger.info("Batch ID: %s", batch_id)
         # Download original image
         response = s3.get_object(
             Bucket=bucket,
@@ -47,7 +114,6 @@ def lambda_handler(event, context):
             "Original file size: %d bytes",
             original_size
         )
-
         # Open image
         try:
             image = Image.open(io.BytesIO(original_bytes))
@@ -68,7 +134,6 @@ def lambda_handler(event, context):
             original_format,
             original_mode
         )
-
         # Detect transparency properly
         has_transparency = False
         if image.mode in ("RGBA", "LA"):
@@ -77,7 +142,6 @@ def lambda_handler(event, context):
             has_transparency = alpha_min < 255
         elif image.mode == "P":
             transparency = image.info.get("transparency")
-
             if transparency is not None:
                 has_transparency = True
         logger.info(
@@ -106,7 +170,6 @@ def lambda_handler(event, context):
                 "Image does not exceed maximum dimension. "
                 "Resize not required."
             )
-
         # Prepare image modes
         if not has_transparency:
             if image.mode not in ("RGB", "L"):
@@ -114,10 +177,8 @@ def lambda_handler(event, context):
         else:
             if image.mode not in ("RGBA", "LA"):
                 image = image.convert("RGBA")
-
         # Candidate generation
         candidates = []
-
         # NON-TRANSPARENT IMAGE
         if not has_transparency:
             # JPEG candidate
@@ -142,7 +203,6 @@ def lambda_handler(event, context):
                 "Candidate: JPEG | %d bytes",
                 len(jpeg_bytes)
             )
-
             # WebP candidate
             webp_buffer = io.BytesIO()
             image.convert("RGB").save(
@@ -164,7 +224,6 @@ def lambda_handler(event, context):
                 "Candidate: WEBP | %d bytes",
                 len(webp_bytes)
             )
-
         # TRANSPARENT IMAGE
         else:
             # WebP lossless candidate
@@ -188,7 +247,6 @@ def lambda_handler(event, context):
                 "Candidate: WEBP LOSSLESS | %d bytes",
                 len(webp_bytes)
             )
-
             # PNG candidate
             png_buffer = io.BytesIO()
             image.save(
@@ -210,7 +268,6 @@ def lambda_handler(event, context):
                 "Candidate: PNG | %d bytes",
                 len(png_bytes)
             )
-
         # Select smallest candidate
         best = min(
             candidates,
@@ -225,16 +282,19 @@ def lambda_handler(event, context):
             final_format,
             len(final_bytes)
         )
-
-        # Generate output key
+        # Generate output key inside the same batch folder
         base_name = os.path.splitext(
             os.path.basename(key)
         )[0]
         output_key = (
+            f"{batch_id}/"
             f"processed-{base_name}"
             f"{final_extension}"
         )
-
+        logger.info(
+            "Output key: %s",
+            output_key
+        )
         # Upload optimized image
         s3.put_object(
             Bucket=OUTPUT_BUCKET,
@@ -243,7 +303,6 @@ def lambda_handler(event, context):
             ContentType=final_content_type
         )
         final_size = len(final_bytes)
-
         # Storage reduction
         if original_size > 0:
             reduction = (
@@ -252,12 +311,10 @@ def lambda_handler(event, context):
             ) * 100
         else:
             reduction = 0
-
         # Processing time
         processing_time_ms = (
             time.perf_counter() - start_time
         ) * 1000
-
         # CloudWatch Custom Metrics
         cloudwatch.put_metric_data(
             Namespace="CloudVision",
@@ -309,16 +366,21 @@ def lambda_handler(event, context):
             final_width,
             final_height
         )
+        # Update batch progress
+        update_batch_progress(
+            batch_id,
+            key
+        )
         logger.info(
             "CloudVision image optimization completed"
         )
-
         # Response
         return {
             "statusCode": 200,
             "body": {
                 "message": "Image optimized successfully",
                 "request_id": request_id,
+                "batch_id": batch_id,
                 "input_file": key,
                 "output_file": output_key,
                 "original_format": original_format,
@@ -340,7 +402,6 @@ def lambda_handler(event, context):
                 "transparency": has_transparency
             }
         }
-        
     # Expected errors
     except KeyError as e:
         logger.error(
@@ -349,7 +410,6 @@ def lambda_handler(event, context):
             exc_info=True
         )
         raise
-
     except ValueError as e:
         logger.error(
             "Image validation failed: %s",
@@ -357,7 +417,6 @@ def lambda_handler(event, context):
             exc_info=True
         )
         raise
-
     # Unexpected errors
     except Exception as e:
         logger.error(
