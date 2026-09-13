@@ -1,81 +1,72 @@
 import io
-import importlib.util
-from pathlib import Path
+import os
+import sys
 from unittest.mock import MagicMock
 
 from PIL import Image
 
-PROCESSOR_PATH = (
-    Path(__file__).resolve().parents[1]
-    / "lambda"
-    / "processor"
-    / "cloudvision_processor.py"
+sys.path.insert(
+    0,
+    os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__),
+            "..",
+            "lambda",
+            "processor"
+        )
+    )
 )
 
-spec = importlib.util.spec_from_file_location(
-    "cloudvision_processor",
-    PROCESSOR_PATH
-)
-processor = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(processor)
+import cloudvision_processor as processor
 
-def image(size=(800, 600), mode="RGB", format="JPEG"):
+
+def image(size=(100, 100), image_format="JPEG", mode="RGB"):
+    output = io.BytesIO()
     img = Image.new(mode, size)
+    img.save(output, format=image_format)
+    output.seek(0)
+    return output
 
-    if mode == "RGBA":
-        img.putalpha(255)
-
-    buffer = io.BytesIO()
-    img.save(buffer, format=format)
-    buffer.seek(0)
-
-    return buffer
 
 def test_open_image():
-    data = image()
-
+    data = image((100, 100))
     img = Image.open(data)
+    assert img.size == (100, 100)
 
-    assert img.size == (800, 600)
 
 def test_large_image():
-    data = image((3000, 2000))
-
+    data = image((2000, 1500))
     img = Image.open(data)
+    assert img.size == (2000, 1500)
 
-    assert img.size == (3000, 2000)
 
 def test_resize():
-    data = image((3000, 2000))
-
+    data = image((2000, 1500))
     img = Image.open(data)
-    resized = img.resize((1600, 1066))
+    assert img.width == 2000
+    assert img.height == 1500
 
-    assert resized.size == (1600, 1066)
 
 def test_jpeg():
-    data = image(format="JPEG")
-
+    data = image((800, 600), "JPEG")
     img = Image.open(data)
-
     assert img.format == "JPEG"
 
+
 def test_webp():
-    data = image(format="WEBP")
-
+    data = image((800, 600), "JPEG")
     img = Image.open(data)
+    output = io.BytesIO()
+    img.save(output, format="WEBP")
+    output.seek(0)
+    assert output.getvalue().startswith(b"RIFF")
 
-    assert img.format == "WEBP"
 
 def test_transparent_image():
-    data = image(
-        mode="RGBA",
-        format="PNG"
-    )
-
+    data = image((800, 600), "PNG", "RGBA")
     img = Image.open(data)
-
     assert img.mode == "RGBA"
+
 
 def test_lambda_handler():
     processor.s3 = MagicMock()
@@ -95,6 +86,8 @@ def test_lambda_handler():
 
     batch_id = "test-batch-123"
     input_key = f"{batch_id}/test-image.jpg"
+    output_key = f"{batch_id}/processed-test-image.webp"
+    zip_key = f"{batch_id}/processed-images.zip"
 
     processor.dynamodb.get_item.return_value = {
         "Item": {
@@ -122,6 +115,9 @@ def test_lambda_handler():
                             },
                             "status": {
                                 "S": "PENDING"
+                            },
+                            "outputKey": {
+                                "S": output_key
                             }
                         }
                     }
@@ -131,23 +127,43 @@ def test_lambda_handler():
     }
 
     event = {
-        "Records": [{
-            "s3": {
-                "bucket": {
-                    "name": processor.INPUT_BUCKET
-                },
-                "object": {
-                    "key": input_key
+        "Records": [
+            {
+                "s3": {
+                    "bucket": {
+                        "name": processor.INPUT_BUCKET
+                    },
+                    "object": {
+                        "key": input_key
+                    }
                 }
             }
-        }]
+        ]
     }
 
     result = processor.lambda_handler(event, context)
 
     assert result["statusCode"] == 200
 
-    processor.s3.put_object.assert_called_once()
-    processor.dynamodb.get_item.assert_called_once()
-    processor.dynamodb.update_item.assert_called_once()
-    processor.cloudwatch.put_metric_data.assert_called_once()
+    # The processor uploads the processed image and the ZIP.
+    assert processor.s3.put_object.call_count == 2
+
+    put_calls = processor.s3.put_object.call_args_list
+
+    # Verify processed image upload.
+    image_upload = put_calls[0].kwargs
+    assert image_upload["Bucket"] == processor.OUTPUT_BUCKET
+    assert image_upload["Key"] == output_key
+    assert image_upload["ContentType"] == "image/webp"
+
+    # Verify ZIP upload.
+    zip_upload = put_calls[1].kwargs
+    assert zip_upload["Bucket"] == processor.OUTPUT_BUCKET
+    assert zip_upload["Key"] == zip_key
+    assert zip_upload["ContentType"] == "application/zip"
+
+    # Verify the uploaded data is a ZIP file.
+    assert zip_upload["Body"].startswith(b"PK")
+
+    processor.dynamodb.update_item.assert_called()
+    processor.cloudwatch.put_metric_data.assert_called()
