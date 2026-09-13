@@ -1,11 +1,17 @@
 import json
 import boto3
 import uuid
-from botocore.exceptions import ClientError
 
 s3 = boto3.client("s3")
+
 INPUT_BUCKET = "cloudvision-input-hk2005"
 OUTPUT_BUCKET = "cloudvision-output-hk2005"
+ALLOWED_TYPES = {
+    "image/jpeg": "jpg",
+    "image/jpg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp"
+}
 
 def response(status_code, body):
     return {
@@ -24,7 +30,6 @@ def lambda_handler(event, context):
         body = event.get("body", "{}")
         if isinstance(body, str):
             body = json.loads(body)
-        
         # RESULT REQUEST
         if body.get("action") == "result":
             input_key = body.get("key", "")
@@ -39,8 +44,6 @@ def lambda_handler(event, context):
             base_name = input_name.rsplit(".", 1)[0]
             prefix = f"processed-{base_name}"
             print("Searching output bucket with prefix:", prefix)
-            
-            # Find processed object
             result = s3.list_objects_v2(
                 Bucket=OUTPUT_BUCKET,
                 Prefix=prefix
@@ -53,14 +56,10 @@ def lambda_handler(event, context):
                         "status": "processing"
                     }
                 )
-
-            # Get the processed object
             output_object = objects[0]
             output_key = output_object["Key"]
             output_size = output_object["Size"]
             print("Processed object found:", output_key)
-            
-            # Generate secure download URL
             download_url = s3.generate_presigned_url(
                 "get_object",
                 Params={
@@ -70,8 +69,6 @@ def lambda_handler(event, context):
                 ExpiresIn=300,
                 HttpMethod="GET"
             )
-
-            # Return result
             return response(
                 200,
                 {
@@ -82,7 +79,89 @@ def lambda_handler(event, context):
                 }
             )
 
-        # UPLOAD REQUEST
+        # MULTI-FILE UPLOAD REQUEST
+        files = body.get("files")
+        if files is not None:
+            if not isinstance(files, list):
+                return response(
+                    400,
+                    {
+                        "error": "Files must be provided as a list."
+                    }
+                )
+            if len(files) == 0:
+                return response(
+                    400,
+                    {
+                        "error": "No files provided."
+                    }
+                )
+            if len(files) > 3:
+                return response(
+                    400,
+                    {
+                        "error": "A maximum of 3 images can be uploaded at once."
+                    }
+                )
+            uploads = []
+            for file in files:
+                file_name = file.get("fileName", "")
+                content_type = file.get("contentType", "")
+                if not content_type:
+                    content_type = file.get("content_type", "")
+
+                content_type = content_type.lower().strip()
+                print("File name:", file_name)
+                print("Content type:", content_type)
+                if not file_name:
+                    return response(
+                        400,
+                        {
+                            "error": "Missing file name."
+                        }
+                    )
+                if content_type not in ALLOWED_TYPES:
+                    return response(
+                        400,
+                        {
+                            "error": "Unsupported image type",
+                            "fileName": file_name,
+                            "received_type": content_type,
+                            "supported_types": [
+                                "image/jpeg",
+                                "image/png",
+                                "image/webp"
+                            ]
+                        }
+                    )
+                extension = ALLOWED_TYPES[content_type]
+                key = f"{uuid.uuid4()}.{extension}"
+                upload_url = s3.generate_presigned_url(
+                    "put_object",
+                    Params={
+                        "Bucket": INPUT_BUCKET,
+                        "Key": key,
+                        "ContentType": content_type
+                    },
+                    ExpiresIn=300,
+                    HttpMethod="PUT"
+                )
+                print("Generated upload key:", key)
+                uploads.append(
+                    {
+                        "uploadUrl": upload_url,
+                        "key": key,
+                        "fileName": file_name
+                    }
+                )
+            return response(
+                200,
+                {
+                    "uploads": uploads
+                }
+            )
+
+        # SINGLE-FILE UPLOAD REQUEST
         file_name = body.get("fileName", "")
         content_type = body.get("contentType", "")
         if not content_type:
@@ -90,15 +169,14 @@ def lambda_handler(event, context):
         content_type = content_type.lower().strip()
         print("File name:", file_name)
         print("Content type:", content_type)
-
-        # Validate image type
-        allowed_types = {
-            "image/jpeg",
-            "image/jpg",
-            "image/png",
-            "image/webp"
-        }
-        if content_type not in allowed_types:
+        if not content_type:
+            return response(
+                400,
+                {
+                    "error": "Missing content type."
+                }
+            )
+        if content_type not in ALLOWED_TYPES:
             return response(
                 400,
                 {
@@ -111,19 +189,8 @@ def lambda_handler(event, context):
                     ]
                 }
             )
-
-        # Select extension
-        extension = {
-            "image/jpeg": "jpg",
-            "image/jpg": "jpg",
-            "image/png": "png",
-            "image/webp": "webp"
-        }[content_type]
-
-        # Generate unique key
+        extension = ALLOWED_TYPES[content_type]
         key = f"{uuid.uuid4()}.{extension}"
-
-        # Generate presigned PUT URL
         upload_url = s3.generate_presigned_url(
             "put_object",
             Params={
@@ -135,8 +202,6 @@ def lambda_handler(event, context):
             HttpMethod="PUT"
         )
         print("Generated upload key:", key)
-
-        # Return upload URL
         return response(
             200,
             {

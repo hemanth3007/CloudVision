@@ -7,7 +7,6 @@ resource "aws_lambda_function" "processor" {
   timeout       = 30
   architectures = ["x86_64"]
   filename      = "placeholder.zip"
-
   # Terraform should not replace the currently deployed
   # Lambda code when we are importing the existing function.
   lifecycle {
@@ -21,7 +20,6 @@ resource "aws_lambda_function" "processor" {
       MAX_DIMENSION = "1600"
     }
   }
-
   layers = [
     "arn:aws:lambda:ap-south-1:056641105958:layer:cloudvision-pillow-v2:1"
   ]
@@ -30,7 +28,7 @@ resource "aws_lambda_function" "processor" {
 resource "aws_lambda_function" "upload" {
   function_name = "cloudvision-upload-image"
   role          = "arn:aws:iam::056641105958:role/cloudvision-upload-image-role-ijoxfs7t"
-  handler       = "lambda_function.lambda_handler"
+  handler       = "cloudvision_upload.lambda_handler"
   runtime       = "python3.14"
   memory_size   = 128
   timeout       = 3
