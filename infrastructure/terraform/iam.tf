@@ -187,7 +187,7 @@ resource "aws_iam_role" "github_actions" {
             "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
           }
           StringLike = {
-            "token.actions.githubusercontent.com:sub" = "repo:hemanth3007/CloudVision:ref:refs/heads/main"
+            "token.actions.githubusercontent.com:sub" = "repo:hemanth3007@149521624/CloudVision@1304375845:ref:refs/heads/main"
           }
         }
       }
