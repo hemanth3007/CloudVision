@@ -12,7 +12,8 @@ resource "aws_apigatewayv2_api" "upload" {
       "OPTIONS"
     ]
     allow_origins = [
-      "http://127.0.0.1:5500"
+      "http://127.0.0.1:5500",
+      "https://d28272gnmhhti1.cloudfront.net"
     ]
     max_age = 0
   }
