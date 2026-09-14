@@ -1,6 +1,7 @@
 import json
 import os
 import uuid
+import time
 import boto3
 
 UPLOAD_BUCKET = os.environ.get("UPLOAD_BUCKET", "cloudvision-input-hk2005")
@@ -8,6 +9,7 @@ OUTPUT_BUCKET = "cloudvision-output-hk2005"
 BATCH_TABLE = "CloudVisionBatches"
 REGION = "ap-south-1"
 URL_EXPIRATION = 900
+BATCH_TTL_SECONDS = 2 * 24 * 60 * 60
 ALLOWED_CONTENT_TYPES = {
     "image/jpeg",
     "image/png",
@@ -90,6 +92,9 @@ def create_upload_urls(files):
                 "status": {"S": "PENDING"}
             }
         })
+
+    ttl = int(time.time()) + BATCH_TTL_SECONDS
+
     dynamodb.put_item(
         TableName=BATCH_TABLE,
         Item={
@@ -97,7 +102,8 @@ def create_upload_urls(files):
             "total": {"N": str(len(batch_files))},
             "completed": {"N": "0"},
             "status": {"S": "PROCESSING"},
-            "files": {"L": batch_files}
+            "files": {"L": batch_files},
+            "ttl": {"N": str(ttl)}
         }
     )
     return {

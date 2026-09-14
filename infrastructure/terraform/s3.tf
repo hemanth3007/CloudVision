@@ -80,3 +80,15 @@ resource "aws_s3_bucket_lifecycle_configuration" "input" {
     }
   }
 }
+
+# Delete processed images after 20 days
+resource "aws_s3_bucket_lifecycle_configuration" "output" {
+  bucket = aws_s3_bucket.output.id
+  rule {
+    id     = "delete-processed-images-after-20-days"
+    status = "Enabled"
+    expiration {
+      days = 20
+    }
+  }
+}

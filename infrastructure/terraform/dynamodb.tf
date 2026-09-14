@@ -6,6 +6,10 @@ resource "aws_dynamodb_table" "batches" {
     name = "batchId"
     type = "S"
   }
+  ttl {
+    attribute_name = "ttl"
+    enabled        = true
+  }
   tags = {
     Project = "CloudVision"
   }
