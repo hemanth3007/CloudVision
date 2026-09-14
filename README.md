@@ -112,100 +112,42 @@ Temporary input data, batch metadata, and processed artifacts are automatically 
 
 ---
 
-## 🏗️ Architecture
+### 📐 Architecture Diagram
 
-```text
-                         ┌──────────────────────────┐
-                         │          USER            │
-                         │       Web Browser        │
-                         └────────────┬─────────────┘
-                                      │
-                                   HTTPS
-                                      │
-                                      ▼
-                         ┌──────────────────────────┐
-                         │       CLOUDFRONT         │
-                         │      Global CDN + TLS    │
-                         └────────────┬─────────────┘
-                                      │
-                                      ▼
-                         ┌──────────────────────────┐
-                         │      S3 FRONTEND         │
-                         │     HTML / CSS / JS      │
-                         └──────────────────────────┘
-
-
-Browser
-   │
-   │ POST /upload
-   ▼
-┌──────────────────────────┐
-│      API GATEWAY         │
-│        HTTP API          │
-└────────────┬─────────────┘
-             │
-             ▼
-┌──────────────────────────┐
-│      UPLOAD LAMBDA       │
-│ cloudvision-upload-image │
-│                          │
-│ • Create batch           │
-│ • Generate presigned URL │
-│ • Initialize DynamoDB    │
-└────────────┬─────────────┘
-             │
-       Presigned PUT
-             │
-             ▼
-┌──────────────────────────┐
-│       S3 INPUT           │
-│ cloudvision-input-...    │
-│                          │
-│     Original Images      │
-└────────────┬─────────────┘
-             │
-        ObjectCreated
-             │
-             ▼
-┌──────────────────────────┐
-│    PROCESSOR LAMBDA      │
-│   CloudVisionProcessor   │
-│                          │
-│        Pillow            │
-│ • EXIF correction        │
-│ • Resize                 │
-│ • Compression            │
-│ • Format optimization    │
-└────────────┬─────────────┘
-             │
-       ┌─────┴──────┐
-       │            │
-       ▼            ▼
-┌──────────────┐ ┌────────────────────┐
-│  S3 OUTPUT   │ │     DYNAMODB       │
-│              │ │                    │
-│ Processed    │ │ Batch metadata     │
-│ Images       │ │ Progress / Status  │
-│ ZIP Archive  │ │ File metadata      │
-└──────┬───────┘ └────────────────────┘
-       │
-       │ Presigned GET
-       ▼
-┌──────────────────────────┐
-│          USER            │
-│ Image / ZIP Download     │
-└──────────────────────────┘
-```
+<p align="center">
+  <img src="docs/architecture/01-system-architecture.png" alt="CloudVision System Architecture" width="900">
+</p>
 
 ### Architecture diagrams
 
-Detailed architecture diagrams are available in:
+<details>
+<summary>📊 View Detailed Architecture Diagrams</summary>
 
-```text
-docs/architecture/
-```
+### 🔄 Upload & Processing Flow
 
----
+<p align="center">
+  <img src="docs/architecture/02-upload-processing-flow.png" alt="CloudVision Upload and Processing Flow" width="900">
+</p>
+
+### ☁️ AWS Infrastructure
+
+<p align="center">
+  <img src="docs/architecture/03-aws-infrastructure.png" alt="CloudVision AWS Infrastructure" width="900">
+</p>
+
+### 🚀 CI/CD Pipeline
+
+<p align="center">
+  <img src="docs/architecture/04-ci-cd-pipeline.png" alt="CloudVision CI/CD Pipeline" width="900">
+</p>
+
+### 🗂️ Data Lifecycle
+
+<p align="center">
+  <img src="docs/architecture/05-data-lifecycle.png" alt="CloudVision Data Lifecycle" width="900">
+</p>
+
+</details>
 
 ## 🔄 How It Works
 
