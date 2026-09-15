@@ -1,6 +1,6 @@
 # Input S3 bucket
 resource "aws_s3_bucket" "input" {
-  bucket = "cloudvision-input-hk2005"
+  bucket = "${var.project_name}-input-${var.bucket_suffix}"
 }
 
 # CORS configuration for browser uploads to the input bucket
@@ -9,7 +9,7 @@ resource "aws_s3_bucket_cors_configuration" "input" {
   cors_rule {
     allowed_origins = [
       "http://127.0.0.1:5500",
-      "https://d28272gnmhhti1.cloudfront.net"
+      "https://${var.cloudfront_domain}"
     ]
     allowed_methods = [
       "PUT",
@@ -28,7 +28,7 @@ resource "aws_s3_bucket_cors_configuration" "input" {
 
 # Output S3 bucket
 resource "aws_s3_bucket" "output" {
-  bucket = "cloudvision-output-hk2005"
+  bucket = "${var.project_name}-output-${var.bucket_suffix}"
 }
 
 # Server-side encryption for input bucket

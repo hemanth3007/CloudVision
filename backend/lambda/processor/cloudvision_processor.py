@@ -8,12 +8,12 @@ import boto3
 from PIL import Image, ImageOps, UnidentifiedImageError
 
 # Configuration
-INPUT_BUCKET = "cloudvision-input-hk2005"
-OUTPUT_BUCKET = "cloudvision-output-hk2005"
-BATCH_TABLE = "CloudVisionBatches"
-MAX_DIMENSION = 1600
-JPEG_QUALITY = 85
-WEBP_QUALITY = 82
+INPUT_BUCKET = os.environ["INPUT_BUCKET"]
+OUTPUT_BUCKET = os.environ["OUTPUT_BUCKET"]
+BATCH_TABLE = os.environ["BATCH_TABLE"]
+MAX_DIMENSION = int(os.environ.get("MAX_DIMENSION", 1600))
+JPEG_QUALITY = int(os.environ.get("JPEG_QUALITY", 85))
+WEBP_QUALITY = int(os.environ.get("WEBP_QUALITY", 82))
 
 # AWS / Logging
 s3 = boto3.client("s3")

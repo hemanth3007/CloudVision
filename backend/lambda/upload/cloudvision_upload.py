@@ -4,10 +4,10 @@ import uuid
 import time
 import boto3
 
-UPLOAD_BUCKET = os.environ.get("UPLOAD_BUCKET", "cloudvision-input-hk2005")
-OUTPUT_BUCKET = "cloudvision-output-hk2005"
-BATCH_TABLE = "CloudVisionBatches"
-REGION = "ap-south-1"
+UPLOAD_BUCKET = os.environ["UPLOAD_BUCKET"]
+OUTPUT_BUCKET = os.environ["OUTPUT_BUCKET"]
+BATCH_TABLE = os.environ["BATCH_TABLE"]
+REGION = os.environ.get("AWS_REGION", "ap-south-1")
 URL_EXPIRATION = 900
 BATCH_TTL_SECONDS = 2 * 24 * 60 * 60
 ALLOWED_CONTENT_TYPES = {

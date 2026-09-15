@@ -20,15 +20,15 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::056641105958:role/CloudVision-GitHubActions-Role
-          aws-region: ap-south-1
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE }}
+          aws-region: ${{ vars.AWS_REGION }}
 
       - name: Deploy frontend to S3
         run: |
-          aws s3 sync frontend/ s3://cloudvision-frontend-hk2005 --delete
+          aws s3 sync frontend/ s3://${{ vars.FRONTEND_BUCKET }} --delete
 
       - name: Invalidate CloudFront cache
         run: |
           aws cloudfront create-invalidation \
-            --distribution-id E136IR91GKFPST \
+            --distribution-id ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }} \
             --paths "/*"
